@@ -359,6 +359,8 @@ window.startExamForLecture = async function(lectureId) {
         }
         
         const data = await response.json();
+        
+        // FIXED: Pass the session parameter (not lecture and student)
         window.location.href = `/exam?session=${data.session_id}`;
         
     } catch (error) {
@@ -367,7 +369,7 @@ window.startExamForLecture = async function(lectureId) {
     }
 }
 
-// Exam page initialization
+// Also update the exam page initialization at the bottom:
 if (window.location.pathname === '/exam') {
     const urlParams = new URLSearchParams(window.location.search);
     const sessionId = urlParams.get('session');
@@ -375,10 +377,16 @@ if (window.location.pathname === '/exam') {
     const studentId = urlParams.get('student');
     
     if (sessionId) {
+        // Initialize with session ID (from /exam?session=xxx)
         currentSession = sessionId;
         proctoringActive = true;
         examManager.initialize(sessionId);
     } else if (lectureId && studentId) {
+        // Legacy: Initialize with lecture and student (from /exam?lecture=xxx&student=yyy)
         examManager.startExam(studentId, lectureId);
+    } else {
+        // No valid parameters
+        alert('Invalid exam session. Redirecting...');
+        window.location.href = '/';
     }
 }

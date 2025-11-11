@@ -217,6 +217,36 @@ async def api_start_exam(req: StartExamRequest):
         total_questions=len(lecture.questions),
         first_question=first_q.dict(),  # Convert to dict here
     )
+    
+class GetQuestionResponse(BaseModel):
+    question: Dict[str, Any]
+    total_questions: int
+    question_number: int
+
+@app.get("/api/exams/{session_id}/question", response_model=GetQuestionResponse)
+async def api_get_current_question(session_id: str):
+    """Get the current question for an active exam session."""
+    session = SESSIONS.get(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found.")
+
+    lecture = LECTURES.get(session.lecture_id)
+    if not lecture:
+        raise HTTPException(status_code=404, detail="Lecture not found.")
+
+    # Get the next question for this session
+    current_q = select_next_question(lecture, session)
+    if not current_q:
+        raise HTTPException(status_code=404, detail="No more questions available.")
+
+    # Calculate question number (total answered + 1)
+    question_number = session.total_answered + 1
+
+    return GetQuestionResponse(
+        question=current_q.dict(),
+        total_questions=len(lecture.questions),
+        question_number=question_number
+    )
 
 
 class SubmitExamAnswerRequest(BaseModel):
