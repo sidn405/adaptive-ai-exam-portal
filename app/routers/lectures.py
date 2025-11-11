@@ -643,3 +643,110 @@ async def get_proctoring_report_endpoint(session_id: str):
     
     return report
 
+@router.get("/analytics/student/{student_id}")
+async def get_student_analytics(student_id: str):
+    """Get analytics for a specific student."""
+    # Find all sessions for this student
+    student_sessions = [
+        session for session in SESSIONS.values()
+        if session.learner_id == student_id and session.completed_at is not None
+    ]
+    
+    if not student_sessions:
+        return {
+            "total_exams": 0,
+            "average_score": 0,
+            "time_per_question": 0,
+            "difficulty_performance": {"easy": 0, "medium": 0, "hard": 0},
+            "topic_performance": {},
+            "improvement_trend": []
+        }
+    
+    # Calculate metrics
+    total_exams = len(student_sessions)
+    total_correct = sum(s.correct_count for s in student_sessions)
+    total_answered = sum(s.total_answered for s in student_sessions)
+    average_score = (total_correct / total_answered * 100) if total_answered > 0 else 0
+    
+    # Difficulty performance
+    difficulty_stats = defaultdict(lambda: {"correct": 0, "total": 0})
+    topic_stats = defaultdict(lambda: {"correct": 0, "total": 0})
+    
+    for session in student_sessions:
+        lecture = LECTURES.get(session.lecture_id)
+        if not lecture:
+            continue
+            
+        for answer in session.answers:
+            # Track by difficulty
+            if answer.difficulty:
+                difficulty_stats[answer.difficulty]["total"] += 1
+                if answer.is_correct:
+                    difficulty_stats[answer.difficulty]["correct"] += 1
+            
+            # Track by topic (get from question)
+            question = get_question_by_id(lecture, answer.question_id)
+            if question and question.topic:
+                topic_stats[question.topic]["total"] += 1
+                if answer.is_correct:
+                    topic_stats[question.topic]["correct"] += 1
+    
+    # Calculate percentages
+    difficulty_performance = {}
+    for diff in ["easy", "medium", "hard"]:
+        if diff in difficulty_stats:
+            stats = difficulty_stats[diff]
+            difficulty_performance[diff] = (stats["correct"] / stats["total"] * 100) if stats["total"] > 0 else 0
+        else:
+            difficulty_performance[diff] = 0
+    
+    topic_performance = {
+        topic: (stats["correct"] / stats["total"] * 100) if stats["total"] > 0 else 0
+        for topic, stats in topic_stats.items()
+    }
+    
+    # Improvement trend (scores over time)
+    improvement_trend = [
+        round(s.correct_count / s.total_answered * 100) if s.total_answered > 0 else 0
+        for s in sorted(student_sessions, key=lambda x: x.completed_at or datetime.min)
+    ]
+    
+    return {
+        "total_exams": total_exams,
+        "average_score": round(average_score, 1),
+        "time_per_question": 30,  # Default value
+        "difficulty_performance": difficulty_performance,
+        "topic_performance": topic_performance,
+        "improvement_trend": improvement_trend
+    }
+
+
+@router.get("/analytics/class/overview")
+async def get_class_analytics():
+    """Get overall class analytics."""
+    # Find all completed sessions
+    completed_sessions = [
+        session for session in SESSIONS.values()
+        if session.completed_at is not None
+    ]
+    
+    if not completed_sessions:
+        return {
+            "total_students": 0,
+            "total_exams": 0,
+            "average_score": 0
+        }
+    
+    # Get unique students
+    unique_students = set(s.learner_id for s in completed_sessions)
+    
+    # Calculate average score
+    total_correct = sum(s.correct_count for s in completed_sessions)
+    total_answered = sum(s.total_answered for s in completed_sessions)
+    average_score = (total_correct / total_answered * 100) if total_answered > 0 else 0
+    
+    return {
+        "total_students": len(unique_students),
+        "total_exams": len(completed_sessions),
+        "average_score": round(average_score, 1)
+    }
