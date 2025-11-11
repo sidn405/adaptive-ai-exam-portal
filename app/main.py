@@ -90,9 +90,23 @@ class ApiTranscribeResponse(BaseModel):
 async def api_transcribe(
     file: UploadFile = File(...),
     title: str = Form("Untitled Lecture"),
+    speaker_labels: bool = Form(False),  # Enable speaker diarization
+    auto_chapters: bool = Form(False),   # Enable auto chapters
 ):
-    """Transcribe audio/video file."""
-    transcript = await transcribe_audio(file)
+    """Transcribe audio/video file with optional advanced features."""
+    if speaker_labels or auto_chapters:
+        from app.services.transcription import transcribe_with_assemblyai_advanced
+        api_key = os.environ.get("ASSEMBLYAI_API_KEY")
+        content = await file.read()
+        transcript = await transcribe_with_assemblyai_advanced(
+            content, 
+            file.filename,
+            api_key,
+            speaker_labels=speaker_labels,
+            auto_chapters=auto_chapters
+        )
+    else:
+        transcript = await transcribe_audio(file)
 
     lecture = Lecture(
         title=title,

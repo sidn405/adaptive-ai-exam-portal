@@ -29,3 +29,4 @@ stripe==7.4.0
 psycopg2-binary
 ffmpeg-python==0.2.0  # Python wrapper for ffmpeg
 pydub==0.25.1  # Audio manipulatio
+assemblyai==0.28.0
