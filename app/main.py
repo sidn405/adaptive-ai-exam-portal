@@ -1,4 +1,4 @@
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 import uuid
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.staticfiles import StaticFiles
@@ -132,7 +132,7 @@ class StartExamRequest(BaseModel):
 class StartExamResponse(BaseModel):
     session_id: str
     total_questions: int
-    first_question: GeneratedQuestion
+    first_question: Dict[str, Any]  # Changed from GeneratedQuestion to Dict
 
 @app.post("/api/lectures")
 async def api_create_lecture(
@@ -177,6 +177,7 @@ async def api_create_lecture(
         return {
             "lecture_id": lecture.id,
             "title": lecture.title,
+            "questions_generated": len(questions),
             "total_questions": len(questions),
             "questions": [q.dict() for q in questions],
         }
@@ -214,7 +215,7 @@ async def api_start_exam(req: StartExamRequest):
     return StartExamResponse(
         session_id=session_id,
         total_questions=len(lecture.questions),
-        first_question=first_q,
+        first_question=first_q.dict(),  # Convert to dict here
     )
 
 
@@ -228,7 +229,7 @@ class SubmitExamAnswerResponse(BaseModel):
     result: Dict
     exam_complete: bool
     final_score: Optional[float] = None
-    next_question: Optional[GeneratedQuestion] = None
+    next_question: Optional[Dict[str, Any]] = None  # Changed from GeneratedQuestion to Dict
 
 
 @app.post("/api/exams/{session_id}/answer", response_model=SubmitExamAnswerResponse)
@@ -293,7 +294,7 @@ async def api_answer_exam(session_id: str, req: SubmitExamAnswerRequest):
         result=result_payload,
         exam_complete=finished,
         final_score=score if finished else None,
-        next_question=next_q,
+        next_question=next_q.dict() if next_q else None,  # Convert to dict here
     )
 
 
