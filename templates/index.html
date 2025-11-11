@@ -181,92 +181,145 @@
 
     <script src="/static/js/app.js"></script>
     <script>
-    function scrollToUpload() {
-        document.querySelector('.upload-section').scrollIntoView({ behavior: 'smooth' });
-    }
 
-    function scrollToLectures() {
-        document.querySelector('.lectures-section').scrollIntoView({ behavior: 'smooth' });
-    }
+        // Handle file selection and transcription
+        document.getElementById('lecture-file').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
 
-    // Load lectures on page load
-    async function loadLectures() {
-        try {
-            const response = await fetch('/api/lectures');
-            
-            if (!response.ok) {
-                throw new Error('Failed to load lectures');
-            }
-            
-            const lectures = await response.json();
-            const container = document.getElementById('lecturesContainer');
-            
-            if (lectures.length === 0) {
-                container.innerHTML = '<p>No lectures available. Create one above to get started!</p>';
-                return;
-            }
-            
-            container.innerHTML = lectures.map(lecture => `
-                <div class="lecture-card">
-                    <h3>${lecture.title}</h3>
-                    <p>${lecture.summary || 'No summary available'}</p>
-                    <p><strong>Questions:</strong> ${lecture.question_count}</p>
-                    <button class="btn btn-primary" onclick="startExamForLecture('${lecture.id}')">
-                        Start Exam
-                    </button>
+            // Show file name
+            document.getElementById('file-name').textContent = file.name;
+
+            // Show status
+            const statusDiv = document.getElementById('transcription-status');
+            statusDiv.innerHTML = `
+                <div style="padding: 12px; background: #DBEAFE; color: #1E40AF; border-radius: 6px;">
+                    <div class="spinner" style="display: inline-block; width: 16px; height: 16px; margin-right: 8px;"></div>
+                    Transcribing audio/video... This may take a minute.
                 </div>
-            `).join('');
-            
-        } catch (error) {
-            console.error('Error loading lectures:', error);
-            document.getElementById('lecturesContainer').innerHTML = 
-                '<p>Error loading lectures. Please refresh the page.</p>';
-        }
-    }
+            `;
 
-    // Start exam - handles both function names
-    async function startExamForLecture(lectureId) {
-        // Simple student ID prompt
-        const studentId = prompt('Enter your student ID:') || `student_${Date.now()}`;
-        
-        try {
-            const response = await fetch('/api/exams/start', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    student_id: studentId,
-                    lecture_id: lectureId
-                })
-            });
-            
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.detail || 'Failed to start exam');
+            try {
+                // Create FormData and upload
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const response = await fetch(`/api/transcribe`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Transcription failed: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+
+                // Show success and populate textarea
+                statusDiv.innerHTML = `
+                    <div style="padding: 12px; background: #D1FAE5; color: #065F46; border-radius: 6px;">
+                        ✓ Transcription complete! Text has been added below.
+                    </div>
+                `;
+
+                document.getElementById('lecture-content').value = data.text;
+
+            } catch (error) {
+                console.error('Transcription error:', error);
+                statusDiv.innerHTML = `
+                    <div style="padding: 12px; background: #FEE2E2; color: #991B1B; border-radius: 6px;">
+                        ✗ Transcription failed: ${error.message}
+                    </div>
+                `;
             }
-            
-            const data = await response.json();
-            
-            // Store session info
-            sessionStorage.setItem('currentSession', data.session_id);
-            sessionStorage.setItem('totalQuestions', data.total_questions);
-            
-            // Redirect to exam page
-            window.location.href = `/exam?session=${data.session_id}`;
-            
-        } catch (error) {
-            console.error('Error starting exam:', error);
-            alert('Error starting exam: ' + error.message);
+        });
+
+        // Load available lectures
+        async function loadLectures() {
+            try {
+                const response = await fetch(`/api/lectures`);
+                const lectures = await response.json();
+                
+                const container = document.getElementById('lectures-list');
+                
+                if (lectures.length === 0) {
+                    container.innerHTML = '<p>No lectures available. Create one above to get started!</p>';
+                    return;
+                }
+                
+                container.innerHTML = lectures.map(lecture => `
+                    <div class="card" style="padding: 20px; margin-bottom: 16px;">
+                        <h3 style="margin-bottom: 8px;">${lecture.title}</h3>
+                        <p style="color: var(--text-secondary); margin-bottom: 16px;">
+                            Created: ${new Date(lecture.created_at).toLocaleDateString()}
+                        </p>
+                        <button class="btn btn-primary" onclick="startExamForLecture('${lecture.id}')">
+                            Start Exam
+                        </button>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading lectures:', error);
+                document.getElementById('lectures-list').innerHTML = 
+                    '<p>Error loading lectures. Please refresh the page.</p>';
+            }
         }
-    }
 
-    // Alias for compatibility
-    window.startExam = startExamForLecture;
+        // Handle lecture form submission
+        document.getElementById('lecture-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const title = document.getElementById('lecture-title').value;
+            const content = document.getElementById('lecture-content').value;
+            
+            const resultDiv = document.getElementById('lecture-result');
+            resultDiv.innerHTML = '<div class="spinner"></div>';
+            
+            try {
+                const response = await fetch(`/api/lectures`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `title=${encodeURIComponent(title)}&content=${encodeURIComponent(content)}`
+                });
+                
+                const data = await response.json();
+                
+                resultDiv.innerHTML = `
+                    <div class="alert alert-success" style="background: #D1FAE5; color: #065F46; padding: 16px; border-radius: 8px;">
+                        <strong>✓ Success!</strong> Created "${title}" with ${data.questions_generated} questions.
+                        <br><br>
+                        <button class="btn btn-success" onclick="startExamForLecture('${data.lecture_id}')">
+                            Start Exam Now
+                        </button>
+                    </div>
+                `;
+                
+                // Reset form
+                e.target.reset();
+                document.getElementById('file-name').textContent = '';
+                document.getElementById('transcription-status').innerHTML = '';
+                
+                // Reload lectures list
+                loadLectures();
+            } catch (error) {
+                console.error('Error creating lecture:', error);
+                resultDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        Error creating lecture. Please try again.
+                    </div>
+                `;
+            }
+        });
 
-    // Load lectures when page loads
-    window.addEventListener('DOMContentLoaded', loadLectures);
-</script>
+        // Start exam for a specific lecture
+        function startExamForLecture(lectureId) {
+            const studentId = generateStudentId();
+            localStorage.setItem('currentStudentId', studentId);
+            window.location.href = `/exam?lecture=${lectureId}&student=${studentId}`;
+        }
 
-<!-- Load the main app.js for form handling -->
-<script src="/static/js/app.js"></script>
+        // Load lectures on page load
+        loadLectures();
+    </script>
 </body>
 </html>
