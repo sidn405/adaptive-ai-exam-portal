@@ -47,6 +47,13 @@ document.getElementById('uploadForm')?.addEventListener('submit', async (e) => {
     const audioFile = document.getElementById('audioFile').files[0];
     
     const submitBtn = e.target.querySelector('button[type="submit"]');
+    const errorDiv = document.getElementById('lectureError');
+    const successDiv = document.getElementById('lectureSuccess');
+    
+    // Hide previous messages
+    if (errorDiv) errorDiv.classList.add('hidden');
+    if (successDiv) successDiv.classList.add('hidden');
+    
     submitBtn.disabled = true;
     submitBtn.textContent = 'Processing...';
     
@@ -59,30 +66,63 @@ document.getElementById('uploadForm')?.addEventListener('submit', async (e) => {
             formData.append('file', audioFile);
             formData.append('title', title);
             
+            console.log('Uploading audio file:', audioFile.name);
+            
             response = await fetch('/api/transcribe', {
                 method: 'POST',
                 body: formData
             });
             
-            if (!response.ok) throw new Error('Transcription failed');
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || 'Transcription failed');
+            }
             
             const data = await response.json();
+            console.log('Transcription successful:', data);
             
             // Display transcript
             document.getElementById('lectureContent').value = data.transcript;
-            document.getElementById('transcriptionSuccess').classList.remove('hidden');
+            
+            const transcriptSuccess = document.getElementById('transcriptionSuccess');
+            if (transcriptSuccess) transcriptSuccess.classList.remove('hidden');
+            
+            // Now create lecture with transcript
+            const lectureFormData = new FormData();
+            lectureFormData.append('title', title);
+            lectureFormData.append('content', data.transcript);
+            
+            response = await fetch('/api/lectures', {
+                method: 'POST',
+                body: lectureFormData
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || 'Lecture creation failed');
+            }
+            
+            const lectureData = await response.json();
+            console.log('Lecture created:', lectureData);
             
             currentLecture = {
-                id: data.lecture_id,
-                title: data.title,
+                id: lectureData.lecture_id,
+                title: lectureData.title || title,
                 content: data.transcript
             };
             
-            // Now generate questions
-            await generateQuestions(data.lecture_id, data.transcript, title);
+            if (successDiv) {
+                successDiv.textContent = `Success! Created "${title}" with ${lectureData.total_questions} questions.`;
+                successDiv.classList.remove('hidden');
+            }
+            
+            const startBtn = document.getElementById('startExamBtn');
+            if (startBtn) startBtn.classList.remove('hidden');
             
         } else if (content) {
             // Text content - create lecture and generate questions
+            console.log('Creating lecture from text...');
+            
             const formData = new FormData();
             formData.append('title', title);
             formData.append('content', content);
@@ -92,26 +132,47 @@ document.getElementById('uploadForm')?.addEventListener('submit', async (e) => {
                 body: formData
             });
             
-            if (!response.ok) throw new Error('Lecture creation failed');
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Server response:', errorText);
+                let errorData;
+                try {
+                    errorData = JSON.parse(errorText);
+                } catch {
+                    throw new Error('Server error: ' + response.statusText);
+                }
+                throw new Error(errorData.detail || 'Lecture creation failed');
+            }
             
             const data = await response.json();
+            console.log('Lecture created successfully:', data);
+            
             currentLecture = {
                 id: data.lecture_id,
                 title: data.title || title,
                 content: content
             };
             
-            document.getElementById('lectureSuccess').classList.remove('hidden');
-            document.getElementById('startExamBtn').classList.remove('hidden');
+            if (successDiv) {
+                successDiv.textContent = `Success! Created "${title}" with ${data.total_questions} questions.`;
+                successDiv.classList.remove('hidden');
+            }
+            
+            const startBtn = document.getElementById('startExamBtn');
+            if (startBtn) startBtn.classList.remove('hidden');
             
         } else {
-            alert('Please provide either text content or an audio file');
-            return;
+            throw new Error('Please provide either text content or an audio file');
         }
         
     } catch (error) {
         console.error('Error:', error);
-        alert('Error processing lecture: ' + error.message);
+        if (errorDiv) {
+            errorDiv.textContent = 'Error: ' + error.message;
+            errorDiv.classList.remove('hidden');
+        } else {
+            alert('Error: ' + error.message);
+        }
     } finally {
         submitBtn.disabled = false;
         submitBtn.textContent = 'Generate Questions & Create Lecture';
