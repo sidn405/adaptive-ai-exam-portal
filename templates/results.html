@@ -81,7 +81,6 @@
     </main>
 
     <script>
-        // Get session ID from URL
         const urlParams = new URLSearchParams(window.location.search);
         const sessionId = urlParams.get('session');
 
@@ -97,7 +96,6 @@
             loadResults(sessionId);
         }
 
-        // Load and display exam results
         async function loadResults(sessionId) {
             try {
                 const response = await fetch(`/api/lectures/results/${sessionId}`);
@@ -121,7 +119,6 @@
             }
         }
 
-        // Display results
         function displayResults(data) {
             const container = document.getElementById('results-container');
             
@@ -129,7 +126,6 @@
             const passed = scorePercentage >= 60;
             
             let html = `
-                <!-- Score Display -->
                 <div class="score-display">
                     <h1>${passed ? '🎉' : '📚'} Exam Complete!</h1>
                     <div class="score-number">${scorePercentage}%</div>
@@ -142,21 +138,16 @@
                     }
                 </div>
 
-                <!-- Exam Info -->
                 <div class="card">
                     <h2>Exam Information</h2>
                     <p><strong>Lecture:</strong> ${data.lecture_title || 'N/A'}</p>
                     <p><strong>Student ID:</strong> ${data.learner_id || 'Anonymous'}</p>
-                    <p><strong>Completed:</strong> ${data.completed_at ? new Date(data.completed_at).toLocaleString() : 'N/A'}</p>
+                    <p><strong>Completed:</strong> ${data.completed_at ? new Date(data.completed_at).toLocaleString() : 'Just now'}</p>
                 </div>
             `;
 
-            // Question-by-question breakdown
             if (data.results && data.results.length > 0) {
-                html += `
-                    <div class="card">
-                        <h2>Question Review</h2>
-                `;
+                html += `<div class="card"><h2>Question Review</h2>`;
 
                 data.results.forEach((result, index) => {
                     const isCorrect = result.is_correct;
@@ -164,7 +155,7 @@
                         <div class="result-item ${isCorrect ? 'correct' : 'incorrect'}">
                             <h3>Question ${index + 1} ${isCorrect ? '✓' : '✗'}</h3>
                             <p><strong>Q:</strong> ${result.question}</p>
-                            <p><strong>Your Answer:</strong> ${result.your_answer || 'No answer provided'}</p>
+                            <p><strong>Your Answer:</strong> ${result.your_answer || 'No answer'}</p>
                             ${!isCorrect ? `<p><strong>Correct Answer:</strong> ${result.correct_answer}</p>` : ''}
                             ${result.explanation ? `<p><strong>Explanation:</strong> ${result.explanation}</p>` : ''}
                             ${result.difficulty ? `<span class="stat-badge">${result.difficulty}</span>` : ''}
@@ -175,26 +166,28 @@
                 html += `</div>`;
             }
 
-            // Proctoring summary
             if (data.proctoring) {
-                const proctoring = data.proctoring;
+                const p = data.proctoring;
+                const score = p.integrity_score || 100;
+                const risk = (p.risk_level || 'low').toLowerCase();
+                const events = p.total_events || 0;
+                
                 html += `
                     <div class="card">
                         <h2>🔐 Proctoring Summary</h2>
                         <div class="proctoring-summary">
-                            <p><strong>Integrity Score:</strong> ${proctoring.integrity_score}/100</p>
+                            <p><strong>Integrity Score:</strong> ${score}/100</p>
                             <p><strong>Risk Level:</strong> 
-                                <span class="stat-badge ${proctoring.risk_level === 'low' ? 'success' : 'danger'}">
-                                    ${proctoring.risk_level.toUpperCase()}
+                                <span class="stat-badge ${risk === 'low' ? 'success' : 'danger'}">
+                                    ${risk.toUpperCase()}
                                 </span>
                             </p>
-                            <p><strong>Total Events:</strong> ${proctoring.total_events}</p>
-                            
-                            ${proctoring.recommendations && proctoring.recommendations.length > 0 ? `
+                            <p><strong>Total Events:</strong> ${events}</p>
+                            ${p.recommendations && p.recommendations.length > 0 ? `
                                 <div style="margin-top: 20px;">
                                     <strong>Recommendations:</strong>
                                     <ul style="margin-top: 10px;">
-                                        ${proctoring.recommendations.map(rec => `<li>${rec}</li>`).join('')}
+                                        ${p.recommendations.map(r => `<li>${r}</li>`).join('')}
                                     </ul>
                                 </div>
                             ` : ''}
@@ -203,7 +196,6 @@
                 `;
             }
 
-            // Action buttons
             html += `
                 <div class="card" style="text-align: center;">
                     <a href="/" class="btn btn-primary">Take Another Exam</a>
