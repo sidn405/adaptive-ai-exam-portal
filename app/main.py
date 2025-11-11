@@ -6,7 +6,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 import os
 from pydantic import BaseModel
-
+from datetime import datetime
 from app.models import Lecture, GeneratedQuestion
 from app.services.transcription import transcribe_audio
 from app.routers import lectures
@@ -307,11 +307,18 @@ async def api_answer_exam(session_id: str, req: SubmitExamAnswerRequest):
     )
 
     update_difficulty(session)
-    SESSIONS[session.id] = session
 
     next_q = select_next_question(lecture, session)
     finished = next_q is None
     score = session.correct_count / session.total_answered if session.total_answered else 0.0
+
+    # ⭐ ADD THIS: Mark session as completed when exam finishes
+    if finished:
+        from datetime import datetime
+        session.completed_at = datetime.now()
+        print(f"✓ Session {session_id} completed at {session.completed_at}")
+
+    SESSIONS[session.id] = session
 
     result_payload = {
         "correct": is_correct,
@@ -324,7 +331,7 @@ async def api_answer_exam(session_id: str, req: SubmitExamAnswerRequest):
         result=result_payload,
         exam_complete=finished,
         final_score=score if finished else None,
-        next_question=next_q.dict() if next_q else None,  # Convert to dict here
+        next_question=next_q.dict() if next_q else None,
     )
 
 
