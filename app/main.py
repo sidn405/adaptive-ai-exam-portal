@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import os
 from pydantic import BaseModel
 from datetime import datetime
-from app.models import Lecture, GeneratedQuestion
+from app.models import Lecture, GeneratedQuestion, GetQuestionResponse
 from app.services.transcription import transcribe_audio
 from app.routers import lectures
 from app.services.question_generator import summarize_text
@@ -211,17 +211,20 @@ async def api_start_exam(req: StartExamRequest):
         raise HTTPException(status_code=400, detail="No questions available.")
 
     SESSIONS[session_id] = session
+    
+    # Initialize proctoring for this session
+    try:
+        from app.services.proctoring import proctoring_engine
+        proctoring_engine.start_proctoring_session(session_id)
+        print(f"✓ Proctoring initialized for session {session_id}")
+    except Exception as e:
+        print(f"Warning: Could not initialize proctoring: {e}")
 
     return StartExamResponse(
         session_id=session_id,
         total_questions=len(lecture.questions),
-        first_question=first_q.dict(),  # Convert to dict here
+        first_question=first_q.dict(),
     )
-    
-class GetQuestionResponse(BaseModel):
-    question: Dict[str, Any]
-    total_questions: int
-    question_number: int
 
 @app.get("/api/exams/{session_id}/question", response_model=GetQuestionResponse)
 async def api_get_current_question(session_id: str):

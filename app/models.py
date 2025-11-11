@@ -75,7 +75,12 @@ class ProctoringEvent(BaseModel):
     confidence: float
     details: Optional[Dict[str, Any]] = None
 
-
+    def __init__(self, **data):
+        if not data.get("timestamp"):
+            from datetime import datetime
+            data["timestamp"] = datetime.now().isoformat()
+        super().__init__(**data)
+        
 class ProctoringReport(BaseModel):
     session_id: str
     duration: int  # seconds

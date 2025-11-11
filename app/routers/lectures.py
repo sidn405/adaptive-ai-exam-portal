@@ -1,7 +1,8 @@
 from typing import List, Optional, Dict
 import uuid
 from datetime import datetime
-
+from collections import defaultdict
+from typing import Dict, List
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 
 from app.models import (
@@ -17,6 +18,8 @@ from app.services.transcription import transcribe_audio
 from app.services.question_generator import summarize_text, generate_questions_from_text
 from app.services.proctoring import ProctoringEngine
 from app.services.analytics import AnalyticsEngine
+
+from app.models import ProctoringEvent
 
 router = APIRouter()
 
@@ -409,48 +412,76 @@ async def get_class_analytics():
 # ============================================================================
 
 @router.get("/results/{session_id}")
-async def get_exam_results(session_id: str):
+async def get_session_results(session_id: str):
     """Get detailed results for a completed exam session."""
     session = SESSIONS.get(session_id)
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found.")
+        raise HTTPException(status_code=404, detail="Session not found")
     
-    if not session.completed_at:
-        raise HTTPException(status_code=400, detail="Exam not yet completed.")
+    if session.completed_at is None:
+        raise HTTPException(status_code=400, detail="Exam not yet completed")
     
     lecture = LECTURES.get(session.lecture_id)
     if not lecture:
-        raise HTTPException(status_code=404, detail="Lecture not found.")
+        raise HTTPException(status_code=404, detail="Lecture not found")
     
-    # Build detailed results
+    # Calculate score
+    score = (session.correct_count / session.total_answered * 100) if session.total_answered > 0 else 0
+    
+    # Build results for each question
     results = []
     for answer in session.answers:
         question = get_question_by_id(lecture, answer.question_id)
-        results.append({
-            "question": question.prompt,
-            "your_answer": answer.learner_answer or f"Option {answer.selected_option_index}",
-            "correct_answer": question.answer,
-            "is_correct": answer.is_correct,
-            "explanation": question.explanation,
-            "difficulty": question.difficulty,
-        })
+        if question:
+            results.append({
+                "question": question.prompt,
+                "your_answer": answer.learner_answer,
+                "correct_answer": question.answer,
+                "is_correct": answer.is_correct,
+                "explanation": question.explanation,
+                "difficulty": question.difficulty
+            })
     
-    # Get proctoring report
-    proctoring_report = proctoring_engine.get_proctoring_report(session_id)
-    
-    score_percentage = (session.correct_count / session.total_answered * 100) if session.total_answered else 0
+    # Get proctoring data using ProctoringEngine
+    try:
+        from app.services.proctoring import proctoring_engine
+        
+        proctoring_report = proctoring_engine.get_proctoring_report(session_id)
+        
+        if "error" not in proctoring_report:
+            proctoring_data = {
+                "integrity_score": proctoring_report.get("integrity_score", 100),
+                "risk_level": proctoring_report.get("risk_level", "low"),
+                "total_events": proctoring_report.get("total_events", 0),
+                "recommendations": proctoring_report.get("recommendations", [])
+            }
+        else:
+            # Fallback if session not found in proctoring engine
+            proctoring_data = {
+                "integrity_score": 100,
+                "risk_level": "low",
+                "total_events": 0,
+                "recommendations": ["✓ No proctoring data available"]
+            }
+    except Exception as e:
+        print(f"Error loading proctoring data: {e}")
+        # Fallback if proctoring not available
+        proctoring_data = {
+            "integrity_score": 100,
+            "risk_level": "low",
+            "total_events": 0,
+            "recommendations": ["Proctoring data unavailable"]
+        }
     
     return {
-        "session_id": session_id,
-        "learner_id": session.learner_id,
-        "lecture_id": session.lecture_id,
-        "lecture_title": lecture.title,
-        "score": score_percentage,
+        "score": score,
         "correct": session.correct_count,
         "total": session.total_answered,
-        "results": results,
-        "proctoring": proctoring_report,
+        "lecture_title": lecture.title,
+        "learner_id": session.learner_id,
         "completed_at": session.completed_at.isoformat() if session.completed_at else None,
+        "results": results,
+        "proctoring": proctoring_data
     }
     
 @router.get("/session/{session_id}")
@@ -473,3 +504,142 @@ async def get_session_info(session_id: str):
         "started_at": session.started_at.isoformat() if session.started_at else None,
         "completed_at": session.completed_at.isoformat() if session.completed_at else None,
     }
+    
+@router.get("/analytics/student/{student_id}")
+async def get_student_analytics(student_id: str):
+    """Get analytics for a specific student."""
+    # Find all sessions for this student
+    student_sessions = [
+        session for session in SESSIONS.values()
+        if session.learner_id == student_id and session.completed_at is not None
+    ]
+    
+    if not student_sessions:
+        return {
+            "total_exams": 0,
+            "average_score": 0,
+            "time_per_question": 0,
+            "difficulty_performance": {"easy": 0, "medium": 0, "hard": 0},
+            "topic_performance": {},
+            "improvement_trend": []
+        }
+    
+    # Calculate metrics
+    total_exams = len(student_sessions)
+    total_correct = sum(s.correct_count for s in student_sessions)
+    total_answered = sum(s.total_answered for s in student_sessions)
+    average_score = (total_correct / total_answered * 100) if total_answered > 0 else 0
+    
+    # Difficulty performance
+    difficulty_stats = defaultdict(lambda: {"correct": 0, "total": 0})
+    topic_stats = defaultdict(lambda: {"correct": 0, "total": 0})
+    
+    for session in student_sessions:
+        for answer in session.answers:
+            # Track by difficulty
+            if answer.difficulty:
+                difficulty_stats[answer.difficulty]["total"] += 1
+                if answer.is_correct:
+                    difficulty_stats[answer.difficulty]["correct"] += 1
+            
+            # Track by topic (get from question)
+            lecture = LECTURES.get(session.lecture_id)
+            if lecture:
+                question = get_question_by_id(lecture, answer.question_id)
+                if question and question.topic:
+                    topic_stats[question.topic]["total"] += 1
+                    if answer.is_correct:
+                        topic_stats[question.topic]["correct"] += 1
+    
+    # Calculate percentages
+    difficulty_performance = {
+        diff: (stats["correct"] / stats["total"] * 100) if stats["total"] > 0 else 0
+        for diff, stats in difficulty_stats.items()
+    }
+    
+    topic_performance = {
+        topic: (stats["correct"] / stats["total"] * 100) if stats["total"] > 0 else 0
+        for topic, stats in topic_stats.items()
+    }
+    
+    # Improvement trend (scores over time)
+    improvement_trend = [
+        round(s.correct_count / s.total_answered * 100) if s.total_answered > 0 else 0
+        for s in sorted(student_sessions, key=lambda x: x.completed_at)
+    ]
+    
+    return {
+        "total_exams": total_exams,
+        "average_score": round(average_score, 1),
+        "time_per_question": 30,  # You can track this if you add timing to answers
+        "difficulty_performance": difficulty_performance,
+        "topic_performance": topic_performance,
+        "improvement_trend": improvement_trend
+    }
+
+
+@router.get("/analytics/class/overview")
+async def get_class_analytics():
+    """Get overall class analytics."""
+    # Find all completed sessions
+    completed_sessions = [
+        session for session in SESSIONS.values()
+        if session.completed_at is not None
+    ]
+    
+    if not completed_sessions:
+        return {
+            "total_students": 0,
+            "total_exams": 0,
+            "average_score": 0
+        }
+    
+    # Get unique students
+    unique_students = set(s.learner_id for s in completed_sessions)
+    
+    # Calculate average score
+    total_correct = sum(s.correct_count for s in completed_sessions)
+    total_answered = sum(s.total_answered for s in completed_sessions)
+    average_score = (total_correct / total_answered * 100) if total_answered > 0 else 0
+    
+    return {
+        "total_students": len(unique_students),
+        "total_exams": len(completed_sessions),
+        "average_score": round(average_score, 1)
+    }
+
+@router.post("/proctoring/{session_id}/event")
+async def log_proctoring_event_endpoint(session_id: str, event: ProctoringEvent):
+    """Log a proctoring event for an exam session."""
+    from app.services.proctoring import proctoring_engine
+    
+    # Ensure session exists
+    if session_id not in SESSIONS:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    # Initialize proctoring if not already started
+    if session_id not in proctoring_engine.sessions:
+        proctoring_engine.start_proctoring_session(session_id)
+    
+    # Log the event
+    result = proctoring_engine.log_proctoring_event(event)
+    
+    return {
+        "status": "logged",
+        "event_type": event.event_type,
+        "risk_level": result.get("current_risk_level", "low")
+    }
+
+
+@router.get("/proctoring/{session_id}/report")
+async def get_proctoring_report_endpoint(session_id: str):
+    """Get proctoring report for a session."""
+    from app.services.proctoring import proctoring_engine
+    
+    report = proctoring_engine.get_proctoring_report(session_id)
+    
+    if "error" in report:
+        raise HTTPException(status_code=404, detail=report["error"])
+    
+    return report
+

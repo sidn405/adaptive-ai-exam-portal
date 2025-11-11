@@ -3,6 +3,9 @@ from datetime import datetime
 from app.models import ProctoringEvent
 import uuid
 
+# In-memory storage for proctoring events
+PROCTORING_EVENTS: List[Dict] = []
+
 class ProctoringEngine:
     def __init__(self):
         self.sessions = {}
