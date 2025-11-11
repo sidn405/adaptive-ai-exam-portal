@@ -96,6 +96,32 @@
                     >
                 </div>
 
+                <!-- Audio/Video Upload Section -->
+                <div class="form-group">
+                    <label class="form-label">Upload Audio/Video Lecture (Optional)</label>
+                    <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 12px;">
+                        <input 
+                            type="file" 
+                            id="lecture-file" 
+                            accept="audio/*,video/*"
+                            style="display: none;"
+                        >
+                        <button 
+                            type="button" 
+                            class="btn btn-primary" 
+                            onclick="document.getElementById('lecture-file').click()"
+                            style="background: #8B5CF6;"
+                        >
+                            🎤 Choose Audio/Video File
+                        </button>
+                        <span id="file-name" style="color: var(--text-secondary); font-size: 0.9rem;"></span>
+                    </div>
+                    <div id="transcription-status" style="margin-bottom: 12px;"></div>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 16px;">
+                        Supported: MP3, WAV, M4A, MP4, MOV, AVI, etc. (max 100MB)
+                    </p>
+                </div>
+
                 <div class="form-group">
                     <label class="form-label" for="lecture-content">Lecture Content</label>
                     <textarea 
@@ -155,6 +181,59 @@
 
     <script src="/static/js/app.js"></script>
     <script>
+
+        // Handle file selection and transcription
+        document.getElementById('lecture-file').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // Show file name
+            document.getElementById('file-name').textContent = file.name;
+
+            // Show status
+            const statusDiv = document.getElementById('transcription-status');
+            statusDiv.innerHTML = `
+                <div style="padding: 12px; background: #DBEAFE; color: #1E40AF; border-radius: 6px;">
+                    <div class="spinner" style="display: inline-block; width: 16px; height: 16px; margin-right: 8px;"></div>
+                    Transcribing audio/video... This may take a minute.
+                </div>
+            `;
+
+            try {
+                // Create FormData and upload
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const response = await fetch(`${API_BASE}/transcribe`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Transcription failed: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+
+                // Show success and populate textarea
+                statusDiv.innerHTML = `
+                    <div style="padding: 12px; background: #D1FAE5; color: #065F46; border-radius: 6px;">
+                        ✓ Transcription complete! Text has been added below.
+                    </div>
+                `;
+
+                document.getElementById('lecture-content').value = data.text;
+
+            } catch (error) {
+                console.error('Transcription error:', error);
+                statusDiv.innerHTML = `
+                    <div style="padding: 12px; background: #FEE2E2; color: #991B1B; border-radius: 6px;">
+                        ✗ Transcription failed: ${error.message}
+                    </div>
+                `;
+            }
+        });
+
         // Load available lectures
         async function loadLectures() {
             try {
@@ -217,6 +296,8 @@
                 
                 // Reset form
                 e.target.reset();
+                document.getElementById('file-name').textContent = '';
+                document.getElementById('transcription-status').innerHTML = '';
                 
                 // Reload lectures list
                 loadLectures();

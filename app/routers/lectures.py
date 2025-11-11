@@ -152,6 +152,10 @@ async def create_lecture_from_text(
         source_type=lecture.source_type,
     )
 
+@router.post("/transcribe")
+async def transcribe_endpoint(file: UploadFile):
+    text = await transcribe_audio(file)
+    return {"text": text}
 
 @router.post("/{lecture_id}/generate-questions", response_model=QuestionGenerationResponse)
 async def generate_questions_for_lecture(lecture_id: str, req: QuestionGenerationRequest):
