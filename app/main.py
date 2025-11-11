@@ -9,9 +9,8 @@ from pydantic import BaseModel
 
 from app.models import Lecture, GeneratedQuestion
 from app.services.transcription import transcribe_audio
+from app.services.question_generator import summarize_text, generate_questions_from_text
 from app.routers import lectures
-from app.services.question_generator import summarize_text
-from app.app import generate_questions_from_text
 
 # Reuse the in-memory stores from lectures.py
 from app.routers.lectures import (
@@ -44,9 +43,9 @@ app.add_middleware(
 try:
     app.mount("/static", StaticFiles(directory="static"), name="static")
 except:
-    pass  # Optional for API-only
+    pass
 
-# Include routers - FIXED: Use /api prefix to match frontend
+# Include routers
 app.include_router(lectures.router, prefix="/api/lectures", tags=["lectures"])
 
 
@@ -57,16 +56,16 @@ async def root():
         with open("templates/index.html", "r") as f:
             return HTMLResponse(content=f.read())
     except FileNotFoundError:
-        return HTMLResponse(content="<h1>Welcome to Adaptive AI Exam Portal</h1><p>API running at /docs</p>")
+        return HTMLResponse(content="<h1>Adaptive AI Exam Portal API</h1><p>Visit /docs for documentation</p>")
 
 
 # -------------------------------------------------------------------
-# Additional API endpoints for frontend
+# API Endpoints
 # -------------------------------------------------------------------
 
 @app.get("/api/lectures")
 def api_list_lectures():
-    """List all lectures for the frontend."""
+    """List all lectures."""
     return [
         {
             "id": lec_id,
@@ -77,6 +76,45 @@ def api_list_lectures():
         }
         for lec_id, lec in LECTURES.items()
     ]
+
+
+@app.post("/api/lectures")
+async def api_create_lecture(
+    title: str = Form(...),
+    content: str = Form(...),
+):
+    """Create lecture and generate questions - FIXED ENDPOINT."""
+    # Create lecture
+    summary = await summarize_text(content)
+    lecture = Lecture(
+        title=title,
+        source_type="text",
+        raw_text=content,
+        summary=summary,
+    )
+    LECTURES[lecture.id] = lecture
+    
+    # Generate questions
+    num_questions = 10
+    mcq = int(num_questions * 0.6)
+    fill_b = int(num_questions * 0.2)
+    short = num_questions - mcq - fill_b
+    mix = {"mcq": mcq, "fill_blank": fill_b, "short_answer": short}
+    
+    questions = await generate_questions_from_text(
+        text=lecture.raw_text,
+        num_questions=num_questions,
+        mix=mix
+    )
+    lecture.questions = questions
+    LECTURES[lecture.id] = lecture
+    
+    return {
+        "lecture_id": lecture.id,
+        "title": lecture.title,
+        "total_questions": len(questions),
+        "questions": [q.dict() for q in questions],
+    }
 
 
 class ApiTranscribeResponse(BaseModel):
@@ -90,23 +128,9 @@ class ApiTranscribeResponse(BaseModel):
 async def api_transcribe(
     file: UploadFile = File(...),
     title: str = Form("Untitled Lecture"),
-    speaker_labels: bool = Form(False),  # Enable speaker diarization
-    auto_chapters: bool = Form(False),   # Enable auto chapters
 ):
-    """Transcribe audio/video file with optional advanced features."""
-    if speaker_labels or auto_chapters:
-        from app.services.transcription import transcribe_with_assemblyai_advanced
-        api_key = os.environ.get("ASSEMBLYAI_API_KEY")
-        content = await file.read()
-        transcript = await transcribe_with_assemblyai_advanced(
-            content, 
-            file.filename,
-            api_key,
-            speaker_labels=speaker_labels,
-            auto_chapters=auto_chapters
-        )
-    else:
-        transcript = await transcribe_audio(file)
+    """Transcribe audio/video file."""
+    transcript = await transcribe_audio(file)
 
     lecture = Lecture(
         title=title,
@@ -134,68 +158,20 @@ class StartExamResponse(BaseModel):
     total_questions: int
     first_question: GeneratedQuestion
 
-@app.post("/api/lectures")
-async def api_create_lecture(
-    title: str = Form(...),
-    content: str = Form(...),
-):
-    """Create lecture and generate questions - WITH ERROR HANDLING."""
-    try:
-        print(f"Creating lecture: {title}")
-        print(f"Content length: {len(content)}")
-        
-        # Create lecture
-        summary = await summarize_text(content)
-        lecture = Lecture(
-            title=title,
-            source_type="text",
-            raw_text=content,
-            summary=summary,
-        )
-        LECTURES[lecture.id] = lecture
-        print(f"Lecture created with ID: {lecture.id}")
-        
-        # Generate questions
-        num_questions = 10
-        mcq = int(num_questions * 0.6)
-        fill_b = int(num_questions * 0.2)
-        short = num_questions - mcq - fill_b
-        mix = {"mcq": mcq, "fill_blank": fill_b, "short_answer": short}
-        
-        print(f"Generating {num_questions} questions...")
-        questions = await generate_questions_from_text(
-            text=lecture.raw_text,
-            num_questions=num_questions,
-            mix=mix
-        )
-        
-        lecture.questions = questions
-        LECTURES[lecture.id] = lecture
-        
-        print(f"Generated {len(questions)} questions successfully")
-        
-        return {
-            "lecture_id": lecture.id,
-            "title": lecture.title,
-            "total_questions": len(questions),
-            "questions": [q.dict() for q in questions],
-        }
-        
-    except Exception as e:
-        print(f"ERROR creating lecture: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Error creating lecture: {str(e)}")
-    
+
 @app.post("/api/exams/start", response_model=StartExamResponse)
 async def api_start_exam(req: StartExamRequest):
-    """Start an exam session."""
+    """Start an exam session - FIXED."""
+    print(f"Starting exam for lecture: {req.lecture_id}, student: {req.student_id}")
+    
     lecture = LECTURES.get(req.lecture_id)
-    if not lecture or not lecture.questions:
-        raise HTTPException(
-            status_code=400,
-            detail="Lecture not found or no questions generated yet.",
-        )
+    if not lecture:
+        print(f"Lecture not found: {req.lecture_id}")
+        print(f"Available lectures: {list(LECTURES.keys())}")
+        raise HTTPException(status_code=404, detail="Lecture not found")
+    
+    if not lecture.questions:
+        raise HTTPException(status_code=400, detail="No questions generated yet")
 
     session_id = str(uuid.uuid4())
     session = TestSession(
@@ -207,9 +183,11 @@ async def api_start_exam(req: StartExamRequest):
 
     first_q = select_next_question(lecture, session)
     if not first_q:
-        raise HTTPException(status_code=400, detail="No questions available.")
+        raise HTTPException(status_code=400, detail="No questions available")
 
     SESSIONS[session_id] = session
+    
+    print(f"Created session: {session_id} with {len(lecture.questions)} questions")
 
     return StartExamResponse(
         session_id=session_id,
@@ -236,11 +214,11 @@ async def api_answer_exam(session_id: str, req: SubmitExamAnswerRequest):
     """Submit an answer."""
     session = SESSIONS.get(session_id)
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found.")
+        raise HTTPException(status_code=404, detail="Session not found")
 
     lecture = LECTURES.get(session.lecture_id)
     if not lecture:
-        raise HTTPException(status_code=404, detail="Lecture not found.")
+        raise HTTPException(status_code=404, detail="Lecture not found")
 
     question = get_question_by_id(lecture, req.question_id)
 
@@ -299,7 +277,6 @@ async def api_answer_exam(session_id: str, req: SubmitExamAnswerRequest):
 
 @app.get("/exam", response_class=HTMLResponse)
 async def exam_page():
-    """Serve the exam page."""
     try:
         with open("templates/exam.html", "r") as f:
             return HTMLResponse(content=f.read())
@@ -309,22 +286,20 @@ async def exam_page():
 
 @app.get("/analytics", response_class=HTMLResponse)
 async def analytics_page():
-    """Serve analytics page."""
     try:
         with open("templates/analytics.html", "r") as f:
             return HTMLResponse(content=f.read())
     except FileNotFoundError:
-        return HTMLResponse(content="<h1>Analytics Dashboard</h1>")
+        return HTMLResponse(content="<h1>Analytics</h1>")
 
 
 @app.get("/results", response_class=HTMLResponse)
 async def results_page():
-    """Serve results page."""
     try:
         with open("templates/results.html", "r") as f:
             return HTMLResponse(content=f.read())
     except FileNotFoundError:
-        return HTMLResponse(content="<h1>Results Page</h1>")
+        return HTMLResponse(content="<h1>Results</h1>")
 
 
 @app.get("/health")
