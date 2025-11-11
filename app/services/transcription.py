@@ -18,7 +18,7 @@ async def transcribe_audio(file: UploadFile) -> str:
     Supports both audio and video files
     """
     # Validate file size (default 100MB limit)
-    validate_file_size(file, max_size_mb=100)
+    validate_file_size(file, max_size_mb=200)
     
     # Get file info
     file_info = get_file_info(file)
@@ -27,16 +27,13 @@ async def transcribe_audio(file: UploadFile) -> str:
     # Process media file (handles both audio and video)
     audio_bytes, audio_ext = await process_media_file(file)
     
-    # Choose transcription method based on available services
-    # Priority: OpenAI Whisper API > AssemblyAI > Local Whisper
-    
-    if os.getenv('OPENAI_API_KEY'):
-        return await transcribe_with_openai_whisper(audio_bytes, audio_ext)
-    elif os.getenv('ASSEMBLYAI_API_KEY'):
+    # ✅ Priority: AssemblyAI > OpenAI Whisper > Local Whisper
+    if os.getenv('ASSEMBLYAI_API_KEY'):
         return await transcribe_with_assemblyai(audio_bytes, audio_ext)
+    elif os.getenv('OPENAI_API_KEY'):
+        return await transcribe_with_openai_whisper(audio_bytes, audio_ext)
     else:
         return await transcribe_with_local_whisper(audio_bytes, audio_ext)
-
 
 async def transcribe_with_openai_whisper(audio_bytes: bytes, extension: str) -> str:
     """Transcribe using OpenAI Whisper API"""

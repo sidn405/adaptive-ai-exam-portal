@@ -104,7 +104,7 @@ async def process_media_file(file: UploadFile) -> tuple[bytes, str]:
 
 
 # Validate file size
-def validate_file_size(file: UploadFile, max_size_mb: int = 100):
+def validate_file_size(file: UploadFile, max_size_mb: int = 200): #Adjust file size
     """Validate uploaded file size"""
     if hasattr(file, 'size') and file.size:
         size_mb = file.size / (1024 * 1024)
