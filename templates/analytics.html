@@ -4,22 +4,403 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Analytics Dashboard - Adaptive AI Exam Portal</title>
-    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --success-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            --card-gradient: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.98) 100%);
+            --text-dark: #2d3748;
+            --text-secondary: #718096;
+            --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            line-height: 1.6;
+            color: var(--text-dark);
+        }
+
+        /* Header */
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .header .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1.5rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 700;
+        }
+
+        .nav {
+            display: flex;
+            gap: 2rem;
+        }
+
+        .nav a {
+            text-decoration: none;
+            color: var(--text-dark);
+            font-weight: 500;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .nav a:after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--primary-gradient);
+            transition: width 0.3s;
+        }
+
+        .nav a:hover:after {
+            width: 100%;
+        }
+
+        /* Container */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Hero Section */
+        .hero {
+            text-align: center;
+            margin: 2rem 0 3rem 0;
+        }
+
+        .hero h1 {
+            font-size: 2.75rem;
+            color: white;
+            margin-bottom: 0.75rem;
+            font-weight: 800;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .hero p {
+            font-size: 1.25rem;
+            color: rgba(255, 255, 255, 0.95);
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Card */
+        .card {
+            background: var(--card-gradient);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow-lg);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+
+        .card h2 {
+            font-size: 1.75rem;
+            margin-bottom: 1.5rem;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 700;
+        }
+
+        .card h3 {
+            font-size: 1.35rem;
+            margin-bottom: 1rem;
+            color: var(--text-dark);
+            font-weight: 700;
+        }
+
+        /* Form Controls */
+        .form-group {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            color: white;
+            font-size: 1.05rem;
+        }
+
+        .form-control {
+            flex: 1;
+            min-width: 250px;
+            padding: 1rem;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            font-size: 1rem;
+            background: rgba(255, 255, 255, 0.95);
+            transition: all 0.3s;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: white;
+            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.2);
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.05rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-block;
+            text-decoration: none;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(139, 92, 246, 0.4);
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.75rem;
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
+        }
+
+        .stat-icon {
+            font-size: 3rem;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+        }
+
+        .stat-content h3 {
+            font-size: 2rem;
+            margin-bottom: 0.25rem;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .stat-content p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            margin: 0;
+        }
+
+        /* Performance Grid */
+        .performance-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .performance-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.75rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .performance-card h3 {
+            font-size: 1.25rem;
+            margin-bottom: 1.25rem;
+            color: var(--text-dark);
+        }
+
+        /* Performance Bar */
+        .performance-bar {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .performance-bar .label {
+            min-width: 80px;
+            font-weight: 600;
+            color: var(--text-dark);
+        }
+
+        .performance-bar .bar {
+            flex: 1;
+            height: 30px;
+            background: #f3f4f6;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .performance-bar .fill {
+            height: 100%;
+            transition: width 0.5s ease;
+            border-radius: 8px;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .performance-bar .fill.easy {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+
+        .performance-bar .fill.medium {
+            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+        }
+
+        .performance-bar .fill.hard {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+
+        .performance-bar .value {
+            min-width: 50px;
+            text-align: right;
+            font-weight: 700;
+            color: var(--text-dark);
+        }
+
+        /* Improvement Section */
+        .improvement-section {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            margin-bottom: 2rem;
+        }
+
+        .improvement-section h3 {
+            font-size: 1.35rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-dark);
+        }
+
+        #improvementChart {
+            width: 100%;
+            max-width: 600px;
+            height: 200px;
+            margin: 0 auto;
+            display: block;
+        }
+
+        /* Hidden Class */
+        .hidden {
+            display: none;
+        }
+
+        /* Analytics Controls */
+        .analytics-controls {
+            margin-bottom: 2rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header .container {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .nav {
+                gap: 1rem;
+            }
+
+            .hero h1 {
+                font-size: 2rem;
+            }
+
+            .hero p {
+                font-size: 1.1rem;
+            }
+
+            .form-group {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .form-control {
+                min-width: 100%;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .performance-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
 <body>
-    <nav class="navbar">
+    <header class="header">
         <div class="container">
-            <div class="nav-brand">
-                <span class="icon">🎓</span>
-                <span>Adaptive AI Exam Portal</span>
-            </div>
-            <div class="nav-links">
+            <h1>🎓 Adaptive AI Exam Portal</h1>
+            <nav class="nav">
                 <a href="/">Home</a>
                 <a href="/analytics">Analytics</a>
                 <a href="/#about">About</a>
-            </div>
+            </nav>
         </div>
-    </nav>
+    </header>
 
     <main class="container">
         <section class="hero">
@@ -29,101 +410,105 @@
 
         <section class="analytics-controls">
             <div class="form-group">
-                <label for="studentIdInput">Student ID</label>
+                <label for="studentIdInput">Student ID:</label>
                 <input type="text" id="studentIdInput" class="form-control" placeholder="Enter student ID">
                 <button class="btn btn-primary" onclick="loadStudentAnalytics()">Load Analytics</button>
             </div>
         </section>
 
-        <section id="studentAnalytics" class="analytics-section hidden">
-            <h2>Student Performance</h2>
-            
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-icon">📚</div>
-                    <div class="stat-content">
-                        <h3 id="totalExams">0</h3>
-                        <p>Total Exams</p>
-                    </div>
-                </div>
+        <section id="studentAnalytics" class="hidden">
+            <div class="card">
+                <h2>Student Performance</h2>
                 
-                <div class="stat-card">
-                    <div class="stat-icon">⭐</div>
-                    <div class="stat-content">
-                        <h3 id="avgScore">0%</h3>
-                        <p>Average Score</p>
-                    </div>
-                </div>
-                
-                <div class="stat-card">
-                    <div class="stat-icon">⏱️</div>
-                    <div class="stat-content">
-                        <h3 id="avgTime">0s</h3>
-                        <p>Avg Time/Question</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="performance-grid">
-                <div class="performance-card">
-                    <h3>📈 Performance by Difficulty</h3>
-                    <div id="difficultyPerformance">
-                        <div class="performance-bar">
-                            <span class="label">Easy:</span>
-                            <div class="bar"><div class="fill easy" id="easyBar"></div></div>
-                            <span class="value" id="easyValue">0%</span>
-                        </div>
-                        <div class="performance-bar">
-                            <span class="label">Medium:</span>
-                            <div class="bar"><div class="fill medium" id="mediumBar"></div></div>
-                            <span class="value" id="mediumValue">0%</span>
-                        </div>
-                        <div class="performance-bar">
-                            <span class="label">Hard:</span>
-                            <div class="bar"><div class="fill hard" id="hardBar"></div></div>
-                            <span class="value" id="hardValue">0%</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="performance-card">
-                    <h3>🎯 Topic Performance</h3>
-                    <div id="topicPerformance">
-                        <p>No topic data available</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="improvement-section">
-                <h3>📊 Improvement Trend</h3>
-                <canvas id="improvementChart" width="600" height="200"></canvas>
-            </div>
-        </section>
-
-        <section id="classAnalytics" class="analytics-section">
-            <h2>Class Overview</h2>
-            <button class="btn btn-secondary" onclick="loadClassAnalytics()">Load Class Analytics</button>
-            <div id="classAnalyticsContent" class="hidden">
                 <div class="stats-grid">
                     <div class="stat-card">
-                        <div class="stat-icon">👥</div>
+                        <div class="stat-icon">📚</div>
                         <div class="stat-content">
-                            <h3 id="totalStudents">0</h3>
-                            <p>Total Students</p>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon">📝</div>
-                        <div class="stat-content">
-                            <h3 id="totalClassExams">0</h3>
+                            <h3 id="totalExams">0</h3>
                             <p>Total Exams</p>
                         </div>
                     </div>
+                    
                     <div class="stat-card">
-                        <div class="stat-icon">🎯</div>
+                        <div class="stat-icon">⭐</div>
                         <div class="stat-content">
-                            <h3 id="classAvgScore">0%</h3>
-                            <p>Class Average</p>
+                            <h3 id="avgScore">0%</h3>
+                            <p>Average Score</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon">⏱️</div>
+                        <div class="stat-content">
+                            <h3 id="avgTime">0s</h3>
+                            <p>Avg Time/Question</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="performance-grid">
+                    <div class="performance-card">
+                        <h3>📈 Performance by Difficulty</h3>
+                        <div id="difficultyPerformance">
+                            <div class="performance-bar">
+                                <span class="label">Easy:</span>
+                                <div class="bar"><div class="fill easy" id="easyBar"></div></div>
+                                <span class="value" id="easyValue">0%</span>
+                            </div>
+                            <div class="performance-bar">
+                                <span class="label">Medium:</span>
+                                <div class="bar"><div class="fill medium" id="mediumBar"></div></div>
+                                <span class="value" id="mediumValue">0%</span>
+                            </div>
+                            <div class="performance-bar">
+                                <span class="label">Hard:</span>
+                                <div class="bar"><div class="fill hard" id="hardBar"></div></div>
+                                <span class="value" id="hardValue">0%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="performance-card">
+                        <h3>🎯 Topic Performance</h3>
+                        <div id="topicPerformance">
+                            <p style="color: var(--text-secondary);">No topic data available</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="improvement-section">
+                    <h3>📊 Improvement Trend</h3>
+                    <canvas id="improvementChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <section id="classAnalytics">
+            <div class="card">
+                <h2>Class Overview</h2>
+                <button class="btn btn-secondary" onclick="loadClassAnalytics()">Load Class Analytics</button>
+                <div id="classAnalyticsContent" class="hidden">
+                    <div class="stats-grid" style="margin-top: 2rem;">
+                        <div class="stat-card">
+                            <div class="stat-icon">👥</div>
+                            <div class="stat-content">
+                                <h3 id="totalStudents">0</h3>
+                                <p>Total Students</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">📝</div>
+                            <div class="stat-content">
+                                <h3 id="totalClassExams">0</h3>
+                                <p>Total Exams</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">🎯</div>
+                            <div class="stat-content">
+                                <h3 id="classAvgScore">0%</h3>
+                                <p>Class Average</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -132,8 +517,6 @@
     </main>
 
     <script>
-        // No API_BASE needed - use relative URLs
-        
         async function loadStudentAnalytics() {
             const studentId = document.getElementById('studentIdInput').value.trim();
             
@@ -200,7 +583,7 @@
                 <div class="performance-bar">
                     <span class="label">${topic}:</span>
                     <div class="bar">
-                        <div class="fill" style="width: ${score}%; background: #4CAF50;"></div>
+                        <div class="fill" style="width: ${score}%; background: linear-gradient(135deg, #10b981 0%, #059669 100%);"></div>
                     </div>
                     <span class="value">${Math.round(score)}%</span>
                 </div>
@@ -213,6 +596,10 @@
             const canvas = document.getElementById('improvementChart');
             const ctx = canvas.getContext('2d');
             
+            // Set canvas size
+            canvas.width = canvas.offsetWidth;
+            canvas.height = 200;
+            
             // Clear canvas
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
@@ -223,7 +610,7 @@
             const maxScore = 100;
             
             // Draw axes
-            ctx.strokeStyle = '#ddd';
+            ctx.strokeStyle = '#e5e7eb';
             ctx.lineWidth = 2;
             ctx.beginPath();
             ctx.moveTo(padding, padding);
@@ -232,7 +619,7 @@
             ctx.stroke();
             
             // Draw line
-            ctx.strokeStyle = '#4CAF50';
+            ctx.strokeStyle = '#10b981';
             ctx.lineWidth = 3;
             ctx.beginPath();
             
@@ -249,16 +636,16 @@
                 }
                 
                 // Draw point
-                ctx.fillStyle = '#4CAF50';
+                ctx.fillStyle = '#10b981';
                 ctx.beginPath();
-                ctx.arc(x, y, 5, 0, 2 * Math.PI);
+                ctx.arc(x, y, 6, 0, 2 * Math.PI);
                 ctx.fill();
             });
             
             ctx.stroke();
             
             // Draw labels
-            ctx.fillStyle = '#666';
+            ctx.fillStyle = '#6b7280';
             ctx.font = '12px Arial';
             ctx.textAlign = 'center';
             

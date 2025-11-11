@@ -4,76 +4,405 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Exam Results - Adaptive AI Exam Portal</title>
-    <link rel="stylesheet" href="/static/css/style.css">
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --success-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            --card-gradient: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.98) 100%);
+            --text-dark: #2d3748;
+            --text-secondary: #718096;
+            --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            line-height: 1.6;
+            color: var(--text-dark);
+        }
+
+        /* Header */
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .header .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1.5rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 700;
+        }
+
+        .nav {
+            display: flex;
+            gap: 2rem;
+        }
+
+        .nav a {
+            text-decoration: none;
+            color: var(--text-dark);
+            font-weight: 500;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .nav a:after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--primary-gradient);
+            transition: width 0.3s;
+        }
+
+        .nav a:hover:after {
+            width: 100%;
+        }
+
+        /* Container */
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Score Display */
         .score-display {
             text-align: center;
-            padding: 40px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 3rem 2rem;
+            background: var(--primary-gradient);
             color: white;
-            border-radius: 12px;
-            margin-bottom: 30px;
+            border-radius: 20px;
+            margin: 2rem 0;
+            box-shadow: var(--shadow-lg);
+            position: relative;
+            overflow: hidden;
         }
+
+        .score-display::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: shimmer 3s infinite;
+        }
+
+        @keyframes shimmer {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            50% { transform: translate(10%, 10%) rotate(180deg); }
+        }
+
+        .score-display h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1.5rem;
+            position: relative;
+            z-index: 1;
+        }
+
         .score-number {
-            font-size: 4rem;
-            font-weight: bold;
-            margin: 20px 0;
+            font-size: 5rem;
+            font-weight: 800;
+            margin: 1.5rem 0;
+            text-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            position: relative;
+            z-index: 1;
         }
+
+        .score-display p {
+            font-size: 1.35rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Card */
+        .card {
+            background: var(--card-gradient);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            box-shadow: var(--shadow-lg);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+
+        .card h2 {
+            font-size: 1.75rem;
+            margin-bottom: 1.5rem;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 700;
+        }
+
+        .card p {
+            margin: 0.75rem 0;
+            line-height: 1.8;
+        }
+
+        /* Result Items */
         .result-item {
             background: white;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 1.75rem;
+            margin-bottom: 1.25rem;
+            transition: all 0.3s;
         }
+
+        .result-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
         .result-item.correct {
-            border-left: 4px solid #10b981;
+            border-left: 5px solid #10b981;
+            background: linear-gradient(to right, #d1fae5 0%, white 10%);
         }
+
         .result-item.incorrect {
-            border-left: 4px solid #ef4444;
+            border-left: 5px solid #ef4444;
+            background: linear-gradient(to right, #fee2e2 0%, white 10%);
         }
+
+        .result-item h3 {
+            font-size: 1.25rem;
+            margin-bottom: 1rem;
+            color: var(--text-dark);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .result-item p {
+            margin: 0.75rem 0;
+            line-height: 1.7;
+        }
+
+        .result-item strong {
+            color: var(--text-dark);
+        }
+
+        /* Proctoring Summary */
         .proctoring-summary {
-            background: #f9fafb;
-            border-radius: 8px;
-            padding: 20px;
-            margin-top: 20px;
+            background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+            border-radius: 12px;
+            padding: 1.75rem;
+            margin-top: 1.5rem;
         }
+
+        .proctoring-summary p {
+            margin: 1rem 0;
+            font-size: 1.05rem;
+        }
+
+        .proctoring-summary strong {
+            color: var(--text-dark);
+        }
+
+        .proctoring-summary ul {
+            margin-left: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        .proctoring-summary li {
+            margin: 0.5rem 0;
+            line-height: 1.7;
+        }
+
+        /* Stat Badges */
         .stat-badge {
             display: inline-block;
-            padding: 8px 16px;
+            padding: 0.5rem 1.25rem;
             border-radius: 20px;
-            font-size: 0.9rem;
-            margin-right: 10px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin-right: 0.75rem;
+            margin-top: 0.5rem;
         }
+
         .stat-badge.success {
-            background: #d1fae5;
+            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
             color: #065f46;
+            border: 2px solid #10b981;
         }
+
         .stat-badge.danger {
-            background: #fee2e2;
+            background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
             color: #991b1b;
+            border: 2px solid #ef4444;
+        }
+
+        .stat-badge.neutral {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            color: #92400e;
+            border: 2px solid #f59e0b;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.05rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-block;
+            text-decoration: none;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--primary-gradient);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(139, 92, 246, 0.4);
+        }
+
+        /* Spinner */
+        .spinner {
+            border: 4px solid rgba(102, 126, 234, 0.2);
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+            margin: 2rem auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Info Box */
+        .info-box {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .info-item {
+            background: linear-gradient(135deg, #f9fafb 0%, white 100%);
+            padding: 1.25rem;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .info-item strong {
+            display: block;
+            color: var(--text-dark);
+            margin-bottom: 0.5rem;
+            font-size: 0.95rem;
+        }
+
+        .info-item span {
+            color: var(--text-secondary);
+            font-size: 1.05rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header .container {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .nav {
+                gap: 1rem;
+            }
+
+            .container {
+                padding: 1rem;
+            }
+
+            .score-display {
+                padding: 2rem 1rem;
+            }
+
+            .score-number {
+                font-size: 3.5rem;
+            }
+
+            .card {
+                padding: 1.5rem;
+            }
+
+            .result-item {
+                padding: 1.25rem;
+            }
+
+            .info-box {
+                grid-template-columns: 1fr;
+            }
+
+            .btn {
+                width: 100%;
+                margin: 0.5rem 0;
+            }
         }
     </style>
 </head>
 <body>
-    <nav class="navbar">
+    <header class="header">
         <div class="container">
-            <div class="nav-brand">
-                <span class="icon">🎓</span>
-                <span>Adaptive AI Exam Portal</span>
-            </div>
-            <div class="nav-links">
+            <h1>🎓 Adaptive AI Exam Portal</h1>
+            <nav class="nav">
                 <a href="/">Home</a>
                 <a href="/analytics">Analytics</a>
-            </div>
+            </nav>
         </div>
-    </nav>
+    </header>
 
     <main class="container">
         <div id="results-container">
-            <div class="card" style="text-align: center; padding: 60px;">
+            <div class="card" style="text-align: center; padding: 4rem 2rem;">
                 <div class="spinner"></div>
-                <p style="margin-top: 20px; color: #6b7280;">
+                <p style="margin-top: 1.5rem; color: var(--text-secondary); font-size: 1.1rem;">
                     Loading your results...
                 </p>
             </div>
@@ -87,9 +416,9 @@
         if (!sessionId) {
             document.getElementById('results-container').innerHTML = `
                 <div class="card" style="text-align: center;">
-                    <h2>❌ No Session Found</h2>
-                    <p>Please complete an exam first.</p>
-                    <a href="/" class="btn btn-primary" style="margin-top: 20px;">Go to Home</a>
+                    <h2 style="color: #ef4444; margin-bottom: 1rem;">❌ No Session Found</h2>
+                    <p style="color: var(--text-secondary); margin-bottom: 2rem;">Please complete an exam first.</p>
+                    <a href="/" class="btn btn-primary">Go to Home</a>
                 </div>
             `;
         } else {
@@ -111,9 +440,9 @@
                 console.error('Error loading results:', error);
                 document.getElementById('results-container').innerHTML = `
                     <div class="card" style="text-align: center;">
-                        <h2>⚠️ Error Loading Results</h2>
-                        <p>${error.message}</p>
-                        <a href="/" class="btn btn-primary" style="margin-top: 20px;">Go to Home</a>
+                        <h2 style="color: #f59e0b; margin-bottom: 1rem;">⚠️ Error Loading Results</h2>
+                        <p style="color: var(--text-secondary); margin-bottom: 2rem;">${error.message}</p>
+                        <a href="/" class="btn btn-primary">Go to Home</a>
                     </div>
                 `;
             }
@@ -127,38 +456,52 @@
             
             let html = `
                 <div class="score-display">
-                    <h1>${passed ? '🎉' : '📚'} Exam Complete!</h1>
+                    <h1>${passed ? '🎉 Congratulations!' : '📚 Keep Learning!'}</h1>
                     <div class="score-number">${scorePercentage}%</div>
-                    <p style="font-size: 1.2rem; margin: 0;">
+                    <p style="font-size: 1.5rem; font-weight: 600;">
                         ${data.correct} out of ${data.total} questions correct
                     </p>
                     ${passed ? 
-                        '<p style="margin-top: 10px; font-size: 1.1rem;">✓ Congratulations! You passed!</p>' : 
-                        '<p style="margin-top: 10px; font-size: 1.1rem;">Keep practicing to improve your score!</p>'
+                        '<p style="margin-top: 1rem; font-size: 1.2rem;">✅ You passed the exam!</p>' : 
+                        '<p style="margin-top: 1rem; font-size: 1.2rem;">Keep practicing to improve your score!</p>'
                     }
                 </div>
 
                 <div class="card">
-                    <h2>Exam Information</h2>
-                    <p><strong>Lecture:</strong> ${data.lecture_title || 'N/A'}</p>
-                    <p><strong>Student ID:</strong> ${data.learner_id || 'Anonymous'}</p>
-                    <p><strong>Completed:</strong> ${data.completed_at ? new Date(data.completed_at).toLocaleString() : 'Just now'}</p>
+                    <h2>📋 Exam Information</h2>
+                    <div class="info-box">
+                        <div class="info-item">
+                            <strong>Lecture</strong>
+                            <span>${data.lecture_title || 'N/A'}</span>
+                        </div>
+                        <div class="info-item">
+                            <strong>Student ID</strong>
+                            <span>${data.learner_id || 'Anonymous'}</span>
+                        </div>
+                        <div class="info-item">
+                            <strong>Completed</strong>
+                            <span>${data.completed_at ? new Date(data.completed_at).toLocaleString() : 'Just now'}</span>
+                        </div>
+                    </div>
                 </div>
             `;
 
             if (data.results && data.results.length > 0) {
-                html += `<div class="card"><h2>Question Review</h2>`;
+                html += `<div class="card"><h2>📝 Question Review</h2>`;
 
                 data.results.forEach((result, index) => {
                     const isCorrect = result.is_correct;
                     html += `
                         <div class="result-item ${isCorrect ? 'correct' : 'incorrect'}">
-                            <h3>Question ${index + 1} ${isCorrect ? '✓' : '✗'}</h3>
-                            <p><strong>Q:</strong> ${result.question}</p>
-                            <p><strong>Your Answer:</strong> ${result.your_answer || 'No answer'}</p>
+                            <h3>
+                                <span>${isCorrect ? '✅' : '❌'}</span>
+                                Question ${index + 1}
+                            </h3>
+                            <p><strong>Question:</strong> ${result.question}</p>
+                            <p><strong>Your Answer:</strong> ${result.your_answer || 'No answer provided'}</p>
                             ${!isCorrect ? `<p><strong>Correct Answer:</strong> ${result.correct_answer}</p>` : ''}
                             ${result.explanation ? `<p><strong>Explanation:</strong> ${result.explanation}</p>` : ''}
-                            ${result.difficulty ? `<span class="stat-badge">${result.difficulty}</span>` : ''}
+                            ${result.difficulty ? `<span class="stat-badge neutral">${result.difficulty}</span>` : ''}
                         </div>
                     `;
                 });
@@ -174,7 +517,7 @@
                 
                 html += `
                     <div class="card">
-                        <h2>🔐 Proctoring Summary</h2>
+                        <h2>🔍 Proctoring Summary</h2>
                         <div class="proctoring-summary">
                             <p><strong>Integrity Score:</strong> ${score}/100</p>
                             <p><strong>Risk Level:</strong> 
@@ -182,11 +525,11 @@
                                     ${risk.toUpperCase()}
                                 </span>
                             </p>
-                            <p><strong>Total Events:</strong> ${events}</p>
+                            <p><strong>Total Events Recorded:</strong> ${events}</p>
                             ${p.recommendations && p.recommendations.length > 0 ? `
-                                <div style="margin-top: 20px;">
-                                    <strong>Recommendations:</strong>
-                                    <ul style="margin-top: 10px;">
+                                <div style="margin-top: 1.5rem;">
+                                    <strong>📌 Recommendations:</strong>
+                                    <ul>
                                         ${p.recommendations.map(r => `<li>${r}</li>`).join('')}
                                     </ul>
                                 </div>
@@ -197,9 +540,9 @@
             }
 
             html += `
-                <div class="card" style="text-align: center;">
+                <div class="card" style="text-align: center; padding: 2.5rem;">
                     <a href="/" class="btn btn-primary">Take Another Exam</a>
-                    <a href="/analytics" class="btn btn-secondary" style="margin-left: 10px;">View Analytics</a>
+                    <a href="/analytics" class="btn btn-secondary">View Analytics</a>
                 </div>
             `;
 
