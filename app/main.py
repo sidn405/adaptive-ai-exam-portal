@@ -1,19 +1,17 @@
-
 from typing import Optional, List, Dict
 import uuid
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 import os
 from pydantic import BaseModel
-
 
 from app.models import Lecture, GeneratedQuestion
 from app.services.transcription import transcribe_audio
 from app.routers import lectures
 
-# Reuse the in-memory stores + helpers from lectures.py
+# Reuse the in-memory stores from lectures.py
 from app.routers.lectures import (
     LECTURES,
     SESSIONS,
@@ -41,10 +39,13 @@ app.add_middleware(
 )
 
 # Mount static files
-app.mount("/static", StaticFiles(directory="static"), name="static")
+try:
+    app.mount("/static", StaticFiles(directory="static"), name="static")
+except:
+    pass  # Optional for API-only
 
-# include routers
-app.include_router(lectures.router, prefix="/lectures", tags=["lectures"])
+# Include routers - FIXED: Use /api prefix to match frontend
+app.include_router(lectures.router, prefix="/api/lectures", tags=["lectures"])
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -54,17 +55,16 @@ async def root():
         with open("templates/index.html", "r") as f:
             return HTMLResponse(content=f.read())
     except FileNotFoundError:
-        return HTMLResponse(content="<h1>Welcome to Adaptive AI Exam Portal</h1><p>Frontend coming soon...</p>")
-    
+        return HTMLResponse(content="<h1>Welcome to Adaptive AI Exam Portal</h1><p>API running at /docs</p>")
+
+
 # -------------------------------------------------------------------
-# 2. /api/lectures  → list all lectures for the frontend
+# Additional API endpoints for frontend
 # -------------------------------------------------------------------
 
 @app.get("/api/lectures")
 def api_list_lectures():
-    """
-    Used by the frontend to show available lectures/exams.
-    """
+    """List all lectures for the frontend."""
     return [
         {
             "id": lec_id,
@@ -76,11 +76,6 @@ def api_list_lectures():
         for lec_id, lec in LECTURES.items()
     ]
 
-
-# -------------------------------------------------------------------
-# 3. /api/transcribe  → upload audio/video, transcribe, create lecture
-#     NO summarize: we just store transcript (summary is optional)
-# -------------------------------------------------------------------
 
 class ApiTranscribeResponse(BaseModel):
     lecture_id: str
@@ -94,20 +89,14 @@ async def api_transcribe(
     file: UploadFile = File(...),
     title: str = Form("Untitled Lecture"),
 ):
-    """
-    Frontend uploads audio/video here.
-    We:
-      - transcribe the file
-      - create a Lecture object
-      - return lecture info + transcript
-    """
-    transcript = await transcribe_audio(file)  # audio/video → text
+    """Transcribe audio/video file."""
+    transcript = await transcribe_audio(file)
 
     lecture = Lecture(
         title=title,
-        source_type="audio",  # covers audio or video
+        source_type="audio",
         raw_text=transcript,
-        summary=None,         # <-- no summarization, per your note
+        summary=None,
     )
     LECTURES[lecture.id] = lecture
 
@@ -118,10 +107,6 @@ async def api_transcribe(
         transcript=transcript,
     )
 
-
-# -------------------------------------------------------------------
-# 4. /api/exams/start  → wraps your adaptive start-session logic
-# -------------------------------------------------------------------
 
 class StartExamRequest(BaseModel):
     student_id: str
@@ -136,10 +121,7 @@ class StartExamResponse(BaseModel):
 
 @app.post("/api/exams/start", response_model=StartExamResponse)
 async def api_start_exam(req: StartExamRequest):
-    """
-    Called by frontend when the student clicks "Start Exam".
-    Internally, we create a TestSession and pick the first question.
-    """
+    """Start an exam session."""
     lecture = LECTURES.get(req.lecture_id)
     if not lecture or not lecture.questions:
         raise HTTPException(
@@ -168,14 +150,10 @@ async def api_start_exam(req: StartExamRequest):
     )
 
 
-# -------------------------------------------------------------------
-# 5. /api/exams/{session_id}/answer  → wraps your adaptive answer logic
-# -------------------------------------------------------------------
-
 class SubmitExamAnswerRequest(BaseModel):
     question_id: str
     student_answer: Optional[str] = None
-    time_spent: Optional[float] = None  # currently unused, but safe to keep
+    time_spent: Optional[float] = None
 
 
 class SubmitExamAnswerResponse(BaseModel):
@@ -187,13 +165,7 @@ class SubmitExamAnswerResponse(BaseModel):
 
 @app.post("/api/exams/{session_id}/answer", response_model=SubmitExamAnswerResponse)
 async def api_answer_exam(session_id: str, req: SubmitExamAnswerRequest):
-    """
-    Frontend calls this after each answer.
-    We:
-      - evaluate correctness (MCQ, fill_blank, short_answer)
-      - update session stats & difficulty
-      - return next question or final score
-    """
+    """Submit an answer."""
     session = SESSIONS.get(session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found.")
@@ -204,12 +176,11 @@ async def api_answer_exam(session_id: str, req: SubmitExamAnswerRequest):
 
     question = get_question_by_id(lecture, req.question_id)
 
-    # --- evaluate correctness ---
+    # Evaluate correctness
     is_correct = False
     correct_answer_text = question.answer
 
     if question.type == "mcq":
-        # In your frontend, we send student_answer = text of chosen option
         chosen = normalize_text(req.student_answer)
         is_correct = any(
             opt.is_correct and normalize_text(opt.text) == chosen
@@ -220,11 +191,9 @@ async def api_answer_exam(session_id: str, req: SubmitExamAnswerRequest):
                 correct_answer_text = opt.text
                 break
     else:
-        is_correct = normalize_text(req.student_answer) == normalize_text(
-            question.answer
-        )
+        is_correct = normalize_text(req.student_answer) == normalize_text(question.answer)
 
-    # --- update session stats ---
+    # Update session
     session.total_answered += 1
     if is_correct:
         session.correct_count += 1
@@ -243,11 +212,7 @@ async def api_answer_exam(session_id: str, req: SubmitExamAnswerRequest):
 
     next_q = select_next_question(lecture, session)
     finished = next_q is None
-    score = (
-        session.correct_count / session.total_answered
-        if session.total_answered
-        else 0.0
-    )
+    score = session.correct_count / session.total_answered if session.total_answered else 0.0
 
     result_payload = {
         "correct": is_correct,
@@ -263,37 +228,42 @@ async def api_answer_exam(session_id: str, req: SubmitExamAnswerRequest):
         next_question=next_q,
     )
 
+
 @app.get("/exam", response_class=HTMLResponse)
 async def exam_page():
-    """Serve the exam taking page."""
+    """Serve the exam page."""
     try:
         with open("templates/exam.html", "r") as f:
             return HTMLResponse(content=f.read())
     except FileNotFoundError:
-        return HTMLResponse(content="<h1>Exam Page</h1><p>Frontend coming soon...</p>")
+        return HTMLResponse(content="<h1>Exam Page</h1>")
+
 
 @app.get("/analytics", response_class=HTMLResponse)
 async def analytics_page():
-    """Serve the analytics dashboard page."""
+    """Serve analytics page."""
     try:
         with open("templates/analytics.html", "r") as f:
             return HTMLResponse(content=f.read())
     except FileNotFoundError:
-        return HTMLResponse(content="<h1>Analytics Dashboard</h1><p>Frontend coming soon...</p>")
+        return HTMLResponse(content="<h1>Analytics Dashboard</h1>")
+
 
 @app.get("/results", response_class=HTMLResponse)
 async def results_page():
-    """Serve the results page."""
+    """Serve results page."""
     try:
         with open("templates/results.html", "r") as f:
             return HTMLResponse(content=f.read())
     except FileNotFoundError:
-        return HTMLResponse(content="<h1>Results Page</h1><p>Frontend coming soon...</p>")
+        return HTMLResponse(content="<h1>Results Page</h1>")
+
 
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
     return {"status": "healthy", "message": "Adaptive AI Exam Portal is running"}
+
 
 if __name__ == "__main__":
     import uvicorn
