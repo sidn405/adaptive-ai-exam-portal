@@ -1,3 +1,5 @@
+// No API_BASE needed - use relative URLs since frontend and backend are on same domain
+
 // Global variables
 let currentLecture = null;
 let currentSession = null;
@@ -34,177 +36,56 @@ async function logProctoringEvent(eventType, confidence, details = {}) {
             })
         });
     } catch (error) {
-        console.error('Error logging proctoring event:', error);
+        console.error('Proctoring event error:', error);
     }
 }
 
-// Upload lecture content
-document.getElementById('uploadForm')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const title = document.getElementById('lectureTitle').value;
-    const content = document.getElementById('lectureContent').value;
-    const audioFile = document.getElementById('audioFile').files[0];
-    
-    const submitBtn = e.target.querySelector('button[type="submit"]');
-    const errorDiv = document.getElementById('lectureError');
-    const successDiv = document.getElementById('lectureSuccess');
-    
-    // Hide previous messages
-    if (errorDiv) errorDiv.classList.add('hidden');
-    if (successDiv) successDiv.classList.add('hidden');
-    
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Processing...';
-    
-    try {
-        let response;
-        
-        if (audioFile) {
-            // Upload audio file
-            const formData = new FormData();
-            formData.append('file', audioFile);
-            formData.append('title', title);
-            
-            console.log('Uploading audio file:', audioFile.name);
-            
-            response = await fetch('/api/transcribe', {
-                method: 'POST',
-                body: formData
-            });
-            
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.detail || 'Transcription failed');
-            }
-            
-            const data = await response.json();
-            console.log('Transcription successful:', data);
-            
-            // Display transcript
-            document.getElementById('lectureContent').value = data.transcript;
-            
-            const transcriptSuccess = document.getElementById('transcriptionSuccess');
-            if (transcriptSuccess) transcriptSuccess.classList.remove('hidden');
-            
-            // Now create lecture with transcript
-            const lectureFormData = new FormData();
-            lectureFormData.append('title', title);
-            lectureFormData.append('content', data.transcript);
-            
-            response = await fetch('/api/lectures', {
-                method: 'POST',
-                body: lectureFormData
-            });
-            
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.detail || 'Lecture creation failed');
-            }
-            
-            const lectureData = await response.json();
-            console.log('Lecture created:', lectureData);
-            
-            currentLecture = {
-                id: lectureData.lecture_id,
-                title: lectureData.title || title,
-                content: data.transcript
-            };
-            
-            if (successDiv) {
-                successDiv.textContent = `Success! Created "${title}" with ${lectureData.total_questions} questions.`;
-                successDiv.classList.remove('hidden');
-            }
-            
-            const startBtn = document.getElementById('startExamBtn');
-            if (startBtn) startBtn.classList.remove('hidden');
-            
-        } else if (content) {
-            // Text content - create lecture and generate questions
-            console.log('Creating lecture from text...');
-            
-            const formData = new FormData();
-            formData.append('title', title);
-            formData.append('content', content);
-            
-            response = await fetch('/api/lectures', {
-                method: 'POST',
-                body: formData
-            });
-            
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error('Server response:', errorText);
-                let errorData;
-                try {
-                    errorData = JSON.parse(errorText);
-                } catch {
-                    throw new Error('Server error: ' + response.statusText);
-                }
-                throw new Error(errorData.detail || 'Lecture creation failed');
-            }
-            
-            const data = await response.json();
-            console.log('Lecture created successfully:', data);
-            
-            currentLecture = {
-                id: data.lecture_id,
-                title: data.title || title,
-                content: content
-            };
-            
-            if (successDiv) {
-                successDiv.textContent = `Success! Created "${title}" with ${data.total_questions} questions.`;
-                successDiv.classList.remove('hidden');
-            }
-            
-            const startBtn = document.getElementById('startExamBtn');
-            if (startBtn) startBtn.classList.remove('hidden');
-            
-        } else {
-            throw new Error('Please provide either text content or an audio file');
-        }
-        
-    } catch (error) {
-        console.error('Error:', error);
-        if (errorDiv) {
-            errorDiv.textContent = 'Error: ' + error.message;
-            errorDiv.classList.remove('hidden');
-        } else {
-            alert('Error: ' + error.message);
-        }
-    } finally {
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Generate Questions & Create Lecture';
-    }
+// Load lectures on page load
+window.addEventListener('DOMContentLoaded', () => {
+    loadLectures();
 });
 
-// Generate questions
-async function generateQuestions(lectureId, content, title) {
+// Load available lectures
+async function loadLectures() {
     try {
-        // Questions already generated in the POST /api/lectures call
-        document.getElementById('lectureSuccess').classList.remove('hidden');
-        document.getElementById('startExamBtn').classList.remove('hidden');
+        const response = await fetch('/api/lectures');
         
-        currentLecture = {
-            id: lectureId,
-            title: title,
-            content: content
-        };
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const lectures = await response.json();
+        
+        const container = document.getElementById('lecturesContainer');
+        if (!container) return;
+        
+        if (lectures.length === 0) {
+            container.innerHTML = '<p>No lectures available. Create one above to get started!</p>';
+            return;
+        }
+        
+        container.innerHTML = lectures.map(lecture => `
+            <div class="lecture-card">
+                <h3>${lecture.title}</h3>
+                <p>${lecture.summary || 'No summary'}</p>
+                <p><strong>Questions:</strong> ${lecture.question_count}</p>
+                <button class="btn btn-primary" onclick="startExamWithLecture('${lecture.id}')">
+                    Take Exam
+                </button>
+            </div>
+        `).join('');
         
     } catch (error) {
-        console.error('Error generating questions:', error);
-        alert('Error generating questions');
+        console.error('Error loading lectures:', error);
+        const container = document.getElementById('lecturesContainer');
+        if (container) {
+            container.innerHTML = '<p>Error loading lectures. Please refresh the page.</p>';
+        }
     }
 }
 
-// Start exam
-document.getElementById('startExamBtn')?.addEventListener('click', async () => {
-    if (!currentLecture) {
-        alert('Please create a lecture first');
-        return;
-    }
-    
+// Start exam with specific lecture
+window.startExamWithLecture = async function(lectureId) {
     const studentId = prompt('Enter your student ID:');
     if (!studentId) return;
     
@@ -214,7 +95,7 @@ document.getElementById('startExamBtn')?.addEventListener('click', async () => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 student_id: studentId,
-                lecture_id: currentLecture.id
+                lecture_id: lectureId
             })
         });
         
@@ -224,22 +105,139 @@ document.getElementById('startExamBtn')?.addEventListener('click', async () => {
         }
         
         const data = await response.json();
-        currentSession = data.session_id;
-        totalQuestions = data.total_questions;
-        currentQuestion = data.first_question;
-        questionNumber = 1;
-        
-        // Start proctoring
-        proctoringActive = true;
-        
-        // Redirect to exam page
-        window.location.href = `/exam?session=${currentSession}`;
+        window.location.href = `/exam?session=${data.session_id}`;
         
     } catch (error) {
         console.error('Error starting exam:', error);
         alert('Error starting exam: ' + error.message);
     }
-});
+}
+
+// Upload lecture content
+const uploadForm = document.getElementById('uploadForm');
+if (uploadForm) {
+    uploadForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const title = document.getElementById('lectureTitle').value;
+        const content = document.getElementById('lectureContent').value;
+        const audioFile = document.getElementById('audioFile').files[0];
+        
+        const submitBtn = e.target.querySelector('button[type="submit"]');
+        const errorDiv = document.getElementById('lectureError');
+        const successDiv = document.getElementById('lectureSuccess');
+        
+        // Hide previous messages
+        if (errorDiv) errorDiv.classList.add('hidden');
+        if (successDiv) successDiv.classList.add('hidden');
+        
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Processing...';
+        
+        try {
+            if (audioFile) {
+                // Upload audio file for transcription
+                const formData = new FormData();
+                formData.append('file', audioFile);
+                formData.append('title', title);
+                
+                const response = await fetch('/api/transcribe', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Transcription failed');
+                }
+                
+                const data = await response.json();
+                
+                // Display transcript
+                document.getElementById('lectureContent').value = data.transcript;
+                
+                const transcriptSuccess = document.getElementById('transcriptionSuccess');
+                if (transcriptSuccess) transcriptSuccess.classList.remove('hidden');
+                
+                // Now create lecture with transcript
+                const lectureFormData = new FormData();
+                lectureFormData.append('title', title);
+                lectureFormData.append('content', data.transcript);
+                
+                const lectureResponse = await fetch('/api/lectures', {
+                    method: 'POST',
+                    body: lectureFormData
+                });
+                
+                if (!lectureResponse.ok) {
+                    const error = await lectureResponse.json();
+                    throw new Error(error.detail || 'Lecture creation failed');
+                }
+                
+                const lectureData = await lectureResponse.json();
+                
+                if (successDiv) {
+                    successDiv.textContent = `✓ Success! Created "${title}" with ${lectureData.total_questions} questions.`;
+                    successDiv.classList.remove('hidden');
+                }
+                
+                // Reload lectures list
+                loadLectures();
+                
+            } else if (content) {
+                // Text content - create lecture directly
+                const formData = new FormData();
+                formData.append('title', title);
+                formData.append('content', content);
+                
+                const response = await fetch('/api/lectures', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Lecture creation failed');
+                }
+                
+                const data = await response.json();
+                
+                if (successDiv) {
+                    successDiv.textContent = `✓ Success! Created "${title}" with ${data.total_questions} questions.`;
+                    successDiv.classList.remove('hidden');
+                }
+                
+                // Reload lectures list
+                loadLectures();
+                
+            } else {
+                throw new Error('Please provide either text content or an audio file');
+            }
+            
+        } catch (error) {
+            console.error('Transcription error:', error);
+            if (errorDiv) {
+                errorDiv.textContent = 'Error: ' + error.message;
+                errorDiv.classList.remove('hidden');
+            }
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Generate Questions & Create Lecture';
+        }
+    });
+}
+
+// Audio file upload handler
+const audioFileInput = document.getElementById('audioFile');
+if (audioFileInput) {
+    audioFileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        const fileNameSpan = document.getElementById('audioFileName');
+        if (file && fileNameSpan) {
+            fileNameSpan.textContent = file.name;
+        }
+    });
+}
 
 // Exam page - Load question
 if (window.location.pathname === '/exam') {
@@ -249,7 +247,7 @@ if (window.location.pathname === '/exam') {
     if (sessionId) {
         currentSession = sessionId;
         proctoringActive = true;
-        loadCurrentQuestion();
+        // Question loading handled by exam.html
     }
 }
 
@@ -258,18 +256,26 @@ async function loadCurrentQuestion() {
     if (!currentQuestion) return;
     
     // Update progress
-    document.getElementById('questionNumber').textContent = questionNumber;
-    document.getElementById('totalQuestions').textContent = totalQuestions;
+    const questionNumberEl = document.getElementById('questionNumber');
+    const totalQuestionsEl = document.getElementById('totalQuestions');
+    const progressBar = document.getElementById('progressBar');
+    
+    if (questionNumberEl) questionNumberEl.textContent = questionNumber;
+    if (totalQuestionsEl) totalQuestionsEl.textContent = totalQuestions;
     
     // Update progress bar
-    const progress = (questionNumber / totalQuestions) * 100;
-    document.getElementById('progressBar').style.width = `${progress}%`;
+    if (progressBar) {
+        const progress = (questionNumber / totalQuestions) * 100;
+        progressBar.style.width = `${progress}%`;
+    }
     
-    // Display question - FIX: Properly access question properties
+    // Display question
     const questionContainer = document.getElementById('questionContainer');
+    if (!questionContainer) return;
+    
     questionContainer.innerHTML = '';
     
-    // Question text
+    // Question title
     const questionTitle = document.createElement('h3');
     questionTitle.textContent = `Question ${questionNumber} of ${totalQuestions}`;
     questionContainer.appendChild(questionTitle);
@@ -282,7 +288,7 @@ async function loadCurrentQuestion() {
         questionContainer.appendChild(badge);
     }
     
-    // Question prompt - FIX: Access .prompt property
+    // Question prompt
     const questionText = document.createElement('p');
     questionText.className = 'question-text';
     questionText.textContent = currentQuestion.prompt || 'Question text';
@@ -298,12 +304,11 @@ async function loadCurrentQuestion() {
     }
 }
 
-// Render MCQ question - FIX: Properly access option.text
+// Render MCQ question
 function renderMCQ(question, container) {
     const optionsDiv = document.createElement('div');
     optionsDiv.className = 'options';
     
-    // FIX: Access options array and each option's text property
     if (question.options && Array.isArray(question.options)) {
         question.options.forEach((option, index) => {
             const optionDiv = document.createElement('div');
@@ -371,7 +376,7 @@ async function submitAnswer() {
         studentAnswer = selected.value;
     } else {
         const input = document.getElementById('answerInput');
-        if (!input.value.trim()) {
+        if (!input || !input.value.trim()) {
             alert('Please provide an answer');
             return;
         }
@@ -411,7 +416,7 @@ async function submitAnswer() {
         
     } catch (error) {
         console.error('Error submitting answer:', error);
-        alert('Error submitting answer');
+        alert('Error submitting answer: ' + error.message);
     }
 }
 
@@ -426,13 +431,6 @@ function showResult(result) {
         <p><strong>Current Score:</strong> ${Math.round(result.score * 100)}%</p>
     `;
     
-    document.getElementById('questionContainer').appendChild(resultDiv);
+    const container = document.getElementById('questionContainer');
+    if (container) container.appendChild(resultDiv);
 }
-
-// Audio file upload handler
-document.getElementById('audioFile')?.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (file) {
-        document.getElementById('audioFileName').textContent = file.name;
-    }
-});
