@@ -1,8 +1,20 @@
-from typing import Dict, List
+from typing import Dict, List, Optional
 from datetime import datetime, timedelta
 from collections import defaultdict
-from app.models import AnalyticsData, ExamSession, EvaluationResult
 import json
+
+class AnalyticsData:
+    """Simple analytics data container."""
+    def __init__(self, student_id: str, total_exams: int, average_score: float, 
+                 time_per_question: float, difficulty_performance: Dict, 
+                 topic_performance: Dict, improvement_trend: List):
+        self.student_id = student_id
+        self.total_exams = total_exams
+        self.average_score = average_score
+        self.time_per_question = time_per_question
+        self.difficulty_performance = difficulty_performance
+        self.topic_performance = topic_performance
+        self.improvement_trend = improvement_trend
 
 class AnalyticsEngine:
     def __init__(self):
@@ -14,29 +26,44 @@ class AnalyticsEngine:
             "topic_performance": defaultdict(list)
         })
     
-    def record_session(self, session: ExamSession, results: List[EvaluationResult]):
+    def record_session(self, session, lecture):
         """Record a completed exam session for analytics."""
-        student_id = session.student_id
+        student_id = session.learner_id
+        if not student_id:
+            return  # Skip if no learner ID
+        
+        score_percentage = (session.correct_count / session.total_answered * 100) if session.total_answered else 0
         
         self.student_data[student_id]["sessions"].append({
             "session_id": session.id,
             "date": session.completed_at or datetime.now(),
-            "score": session.score,
+            "score": score_percentage,
             "lecture_id": session.lecture_id
         })
         
-        self.student_data[student_id]["scores"].append(session.score)
+        self.student_data[student_id]["scores"].append(score_percentage)
         
-        # Record time and performance data
-        for result, question in zip(results, session.questions):
-            self.student_data[student_id]["difficulty_performance"][question.difficulty.value].append(
-                1.0 if result.is_correct else 0.0
-            )
-            self.student_data[student_id]["topic_performance"][question.topic].append(
-                1.0 if result.is_correct else 0.0
-            )
+        # Record time and performance data by difficulty and topic
+        for answer in session.answers:
+            # Find the question to get difficulty and topic
+            question = next((q for q in lecture.questions if q.id == answer.question_id), None)
+            if question:
+                difficulty = answer.difficulty or question.difficulty or "medium"
+                if difficulty in self.student_data[student_id]["difficulty_performance"]:
+                    self.student_data[student_id]["difficulty_performance"][difficulty].append(
+                        1.0 if answer.is_correct else 0.0
+                    )
+                
+                if question.topic:
+                    self.student_data[student_id]["topic_performance"][question.topic].append(
+                        1.0 if answer.is_correct else 0.0
+                    )
+            
+            # Record time data
+            if answer.time_spent:
+                self.student_data[student_id]["time_data"].append(answer.time_spent)
     
-    def get_student_analytics(self, student_id: str) -> AnalyticsData:
+    def get_student_analytics(self, student_id: str):
         """Generate comprehensive analytics for a student."""
         data = self.student_data.get(student_id)
         
@@ -54,6 +81,9 @@ class AnalyticsEngine:
         # Calculate metrics
         total_exams = len(data["sessions"])
         average_score = sum(data["scores"]) / len(data["scores"]) if data["scores"] else 0.0
+        
+        # Time per question
+        avg_time = sum(data["time_data"]) / len(data["time_data"]) if data["time_data"] else 45.0
         
         # Difficulty performance
         difficulty_performance = {}
@@ -74,7 +104,7 @@ class AnalyticsEngine:
             student_id=student_id,
             total_exams=total_exams,
             average_score=round(average_score, 2),
-            time_per_question=45.0,  # Average time in seconds
+            time_per_question=round(avg_time, 1),
             difficulty_performance=difficulty_performance,
             topic_performance=topic_performance,
             improvement_trend=improvement_trend
