@@ -5,30 +5,81 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Exam Results - Adaptive AI Exam Portal</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .score-display {
+            text-align: center;
+            padding: 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 12px;
+            margin-bottom: 30px;
+        }
+        .score-number {
+            font-size: 4rem;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+        .result-item {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+        .result-item.correct {
+            border-left: 4px solid #10b981;
+        }
+        .result-item.incorrect {
+            border-left: 4px solid #ef4444;
+        }
+        .proctoring-summary {
+            background: #f9fafb;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .stat-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin-right: 10px;
+        }
+        .stat-badge.success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .stat-badge.danger {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+    </style>
 </head>
 <body>
-    <header class="header">
+    <nav class="navbar">
         <div class="container">
-            <h1>📋 Exam Results</h1>
-            <nav class="nav">
+            <div class="nav-brand">
+                <span class="icon">🎓</span>
+                <span>Adaptive AI Exam Portal</span>
+            </div>
+            <div class="nav-links">
                 <a href="/">Home</a>
                 <a href="/analytics">Analytics</a>
-            </nav>
+            </div>
         </div>
-    </header>
+    </nav>
 
-    <div class="container">
+    <main class="container">
         <div id="results-container">
             <div class="card" style="text-align: center; padding: 60px;">
                 <div class="spinner"></div>
-                <p style="margin-top: 20px; color: var(--text-secondary);">
+                <p style="margin-top: 20px; color: #6b7280;">
                     Loading your results...
                 </p>
             </div>
         </div>
-    </div>
+    </main>
 
-    <script src="/static/js/app.js"></script>
     <script>
         // Get session ID from URL
         const urlParams = new URLSearchParams(window.location.search);
@@ -37,14 +88,130 @@
         if (!sessionId) {
             document.getElementById('results-container').innerHTML = `
                 <div class="card" style="text-align: center;">
-                    <h2>No Session Found</h2>
+                    <h2>❌ No Session Found</h2>
                     <p>Please complete an exam first.</p>
                     <a href="/" class="btn btn-primary" style="margin-top: 20px;">Go to Home</a>
                 </div>
             `;
         } else {
-            // Load results
             loadResults(sessionId);
+        }
+
+        // Load and display exam results
+        async function loadResults(sessionId) {
+            try {
+                const response = await fetch(`/api/lectures/results/${sessionId}`);
+                
+                if (!response.ok) {
+                    throw new Error('Failed to load results');
+                }
+                
+                const data = await response.json();
+                displayResults(data);
+                
+            } catch (error) {
+                console.error('Error loading results:', error);
+                document.getElementById('results-container').innerHTML = `
+                    <div class="card" style="text-align: center;">
+                        <h2>⚠️ Error Loading Results</h2>
+                        <p>${error.message}</p>
+                        <a href="/" class="btn btn-primary" style="margin-top: 20px;">Go to Home</a>
+                    </div>
+                `;
+            }
+        }
+
+        // Display results
+        function displayResults(data) {
+            const container = document.getElementById('results-container');
+            
+            const scorePercentage = Math.round(data.score);
+            const passed = scorePercentage >= 60;
+            
+            let html = `
+                <!-- Score Display -->
+                <div class="score-display">
+                    <h1>${passed ? '🎉' : '📚'} Exam Complete!</h1>
+                    <div class="score-number">${scorePercentage}%</div>
+                    <p style="font-size: 1.2rem; margin: 0;">
+                        ${data.correct} out of ${data.total} questions correct
+                    </p>
+                    ${passed ? 
+                        '<p style="margin-top: 10px; font-size: 1.1rem;">✓ Congratulations! You passed!</p>' : 
+                        '<p style="margin-top: 10px; font-size: 1.1rem;">Keep practicing to improve your score!</p>'
+                    }
+                </div>
+
+                <!-- Exam Info -->
+                <div class="card">
+                    <h2>Exam Information</h2>
+                    <p><strong>Lecture:</strong> ${data.lecture_title || 'N/A'}</p>
+                    <p><strong>Student ID:</strong> ${data.learner_id || 'Anonymous'}</p>
+                    <p><strong>Completed:</strong> ${data.completed_at ? new Date(data.completed_at).toLocaleString() : 'N/A'}</p>
+                </div>
+            `;
+
+            // Question-by-question breakdown
+            if (data.results && data.results.length > 0) {
+                html += `
+                    <div class="card">
+                        <h2>Question Review</h2>
+                `;
+
+                data.results.forEach((result, index) => {
+                    const isCorrect = result.is_correct;
+                    html += `
+                        <div class="result-item ${isCorrect ? 'correct' : 'incorrect'}">
+                            <h3>Question ${index + 1} ${isCorrect ? '✓' : '✗'}</h3>
+                            <p><strong>Q:</strong> ${result.question}</p>
+                            <p><strong>Your Answer:</strong> ${result.your_answer || 'No answer provided'}</p>
+                            ${!isCorrect ? `<p><strong>Correct Answer:</strong> ${result.correct_answer}</p>` : ''}
+                            ${result.explanation ? `<p><strong>Explanation:</strong> ${result.explanation}</p>` : ''}
+                            ${result.difficulty ? `<span class="stat-badge">${result.difficulty}</span>` : ''}
+                        </div>
+                    `;
+                });
+
+                html += `</div>`;
+            }
+
+            // Proctoring summary
+            if (data.proctoring) {
+                const proctoring = data.proctoring;
+                html += `
+                    <div class="card">
+                        <h2>🔐 Proctoring Summary</h2>
+                        <div class="proctoring-summary">
+                            <p><strong>Integrity Score:</strong> ${proctoring.integrity_score}/100</p>
+                            <p><strong>Risk Level:</strong> 
+                                <span class="stat-badge ${proctoring.risk_level === 'low' ? 'success' : 'danger'}">
+                                    ${proctoring.risk_level.toUpperCase()}
+                                </span>
+                            </p>
+                            <p><strong>Total Events:</strong> ${proctoring.total_events}</p>
+                            
+                            ${proctoring.recommendations && proctoring.recommendations.length > 0 ? `
+                                <div style="margin-top: 20px;">
+                                    <strong>Recommendations:</strong>
+                                    <ul style="margin-top: 10px;">
+                                        ${proctoring.recommendations.map(rec => `<li>${rec}</li>`).join('')}
+                                    </ul>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Action buttons
+            html += `
+                <div class="card" style="text-align: center;">
+                    <a href="/" class="btn btn-primary">Take Another Exam</a>
+                    <a href="/analytics" class="btn btn-secondary" style="margin-left: 10px;">View Analytics</a>
+                </div>
+            `;
+
+            container.innerHTML = html;
         }
     </script>
 </body>
