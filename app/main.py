@@ -118,7 +118,45 @@ class StartExamResponse(BaseModel):
     total_questions: int
     first_question: GeneratedQuestion
 
-
+@app.post("/api/lectures")
+async def api_create_lecture(
+    title: str = Form(...),
+    content: str = Form(...),
+):
+    """Create lecture and generate questions."""
+    from app.services.question_generator import summarize_text, generate_questions_from_text
+    
+    # Create lecture
+    summary = await summarize_text(content)
+    lecture = Lecture(
+        title=title,
+        source_type="text",
+        raw_text=content,
+        summary=summary,
+    )
+    LECTURES[lecture.id] = lecture
+    
+    # Generate questions
+    num_questions = 10
+    mcq = int(num_questions * 0.6)
+    fill_b = int(num_questions * 0.2)
+    short = num_questions - mcq - fill_b
+    mix = {"mcq": mcq, "fill_blank": fill_b, "short_answer": short}
+    
+    questions = await generate_questions_from_text(
+        text=lecture.raw_text,
+        num_questions=num_questions,
+        mix=mix
+    )
+    lecture.questions = questions
+    LECTURES[lecture.id] = lecture
+    
+    return {
+        "lecture_id": lecture.id,
+        "total_questions": len(questions),
+        "questions": [q.dict() for q in questions],
+    }
+    
 @app.post("/api/exams/start", response_model=StartExamResponse)
 async def api_start_exam(req: StartExamRequest):
     """Start an exam session."""
