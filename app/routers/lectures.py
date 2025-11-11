@@ -1,49 +1,42 @@
 from typing import List, Optional, Dict
 import uuid
+from datetime import datetime
 
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
-from pydantic import BaseModel
 
-from app.models import Lecture, GeneratedQuestion
+from app.models import (
+    Lecture, GeneratedQuestion, MCQOption,
+    LectureCreateResponse, QuestionGenerationRequest, QuestionGenerationResponse,
+    SessionStartRequest, SessionStartResponse,
+    AnswerQuestionRequest, AnswerQuestionResponse,
+    TestSession, AnswerRecord,
+    ProctoringEvent, ProctoringReport,
+    StudentAnalytics, ClassAnalytics
+)
 from app.services.transcription import transcribe_audio
 from app.services.question_generator import summarize_text, generate_questions_from_text
+from app.services.proctoring import ProctoringEngine
+from app.services.analytics import AnalyticsEngine
 
 router = APIRouter()
 
-# -------------------------------------------------------------------
+# ============================================================================
 # In-memory stores
-# -------------------------------------------------------------------
+# ============================================================================
 
 LECTURES: Dict[str, Lecture] = {}
-
-
-class AnswerRecord(BaseModel):
-    question_id: str
-    is_correct: bool
-    learner_answer: Optional[str] = None
-    selected_option_index: Optional[int] = None
-    difficulty: Optional[str] = None
-
-
-class TestSession(BaseModel):
-    id: str
-    lecture_id: str
-    learner_id: Optional[str] = None
-    current_difficulty: str = "medium"
-    answers: List[AnswerRecord] = []
-    correct_count: int = 0
-    total_answered: int = 0
-
-
 SESSIONS: Dict[str, TestSession] = {}
 
+# Initialize service engines
+proctoring_engine = ProctoringEngine()
+analytics_engine = AnalyticsEngine()
 
 DIFFICULTY_ORDER = ["easy", "medium", "hard"]
 
 
-# -------------------------------------------------------------------
-# Helpers
-# -------------------------------------------------------------------
+# ============================================================================
+# Helper Functions (Your existing logic)
+# ============================================================================
 
 def get_question_by_id(lecture: Lecture, question_id: str) -> GeneratedQuestion:
     for q in lecture.questions:
@@ -110,65 +103,16 @@ def normalize_text(s: Optional[str]) -> str:
     return (s or "").strip().lower()
 
 
-# -------------------------------------------------------------------
-# Schemas
-# -------------------------------------------------------------------
-
-class LectureCreateResponse(BaseModel):
-    lecture_id: str
-    title: str
-    source_type: str
-
-
-class QuestionGenerationRequest(BaseModel):
-    num_questions: int = 10
-    mcq_ratio: float = 0.6
-    fill_blank_ratio: float = 0.2
-    short_answer_ratio: float = 0.2
-
-
-class QuestionGenerationResponse(BaseModel):
-    lecture_id: str
-    total_questions: int
-    questions: List[GeneratedQuestion]
-
-
-class SessionStartRequest(BaseModel):
-    learner_id: Optional[str] = None
-
-
-class SessionStartResponse(BaseModel):
-    session_id: str
-    lecture_id: str
-    learner_id: Optional[str]
-    question: GeneratedQuestion
-
-
-class AnswerQuestionRequest(BaseModel):
-    session_id: str
-    question_id: str
-    learner_answer: Optional[str] = None
-    selected_option_index: Optional[int] = None
-
-
-class AnswerQuestionResponse(BaseModel):
-    correct: bool
-    correct_answer: Optional[str]
-    explanation: Optional[str]
-    finished: bool
-    score: float
-    next_question: Optional[GeneratedQuestion] = None
-
-
-# -------------------------------------------------------------------
-# Lecture creation & question generation
-# -------------------------------------------------------------------
+# ============================================================================
+# Lecture Creation & Question Generation (Your existing endpoints)
+# ============================================================================
 
 @router.post("/from-audio", response_model=LectureCreateResponse)
 async def create_lecture_from_audio(
     file: UploadFile = File(...),
     title: str = Form("Untitled Lecture"),
 ):
+    """Create lecture from audio file with transcription."""
     transcript = await transcribe_audio(file)
     summary = await summarize_text(transcript)
 
@@ -192,6 +136,7 @@ async def create_lecture_from_text(
     title: str,
     content: str,
 ):
+    """Create lecture from text content."""
     summary = await summarize_text(content)
     lecture = Lecture(
         title=title,
@@ -210,6 +155,7 @@ async def create_lecture_from_text(
 
 @router.post("/{lecture_id}/generate-questions", response_model=QuestionGenerationResponse)
 async def generate_questions_for_lecture(lecture_id: str, req: QuestionGenerationRequest):
+    """Generate questions for a lecture using AI."""
     lecture = LECTURES.get(lecture_id)
     if not lecture:
         raise HTTPException(status_code=404, detail="Lecture not found.")
@@ -233,12 +179,35 @@ async def generate_questions_for_lecture(lecture_id: str, req: QuestionGeneratio
     )
 
 
-# -------------------------------------------------------------------
-# Adaptive test sessions
-# -------------------------------------------------------------------
+@router.get("", response_model=List[LectureCreateResponse])
+async def list_lectures():
+    """List all available lectures."""
+    return [
+        LectureCreateResponse(
+            lecture_id=lecture.id,
+            title=lecture.title,
+            source_type=lecture.source_type,
+        )
+        for lecture in LECTURES.values()
+    ]
+
+
+@router.get("/{lecture_id}")
+async def get_lecture(lecture_id: str):
+    """Get lecture details including all questions."""
+    lecture = LECTURES.get(lecture_id)
+    if not lecture:
+        raise HTTPException(status_code=404, detail="Lecture not found.")
+    return lecture
+
+
+# ============================================================================
+# Adaptive Test Sessions (Your existing logic + proctoring integration)
+# ============================================================================
 
 @router.post("/{lecture_id}/start-session", response_model=SessionStartResponse)
 async def start_session(lecture_id: str, req: SessionStartRequest):
+    """Start a new adaptive test session with proctoring."""
     lecture = LECTURES.get(lecture_id)
     if not lecture or not lecture.questions:
         raise HTTPException(
@@ -251,15 +220,17 @@ async def start_session(lecture_id: str, req: SessionStartRequest):
         id=session_id,
         lecture_id=lecture_id,
         learner_id=req.learner_id,
+        current_difficulty="medium",
     )
-    # start at 'medium' difficulty by default (update_difficulty will adjust)
-    session.current_difficulty = "medium"
 
     first_q = select_next_question(lecture, session)
     if not first_q:
         raise HTTPException(status_code=400, detail="No questions available.")
 
     SESSIONS[session_id] = session
+
+    # Initialize proctoring for this session
+    proctoring_engine.start_proctoring_session(session_id)
 
     return SessionStartResponse(
         session_id=session_id,
@@ -271,6 +242,7 @@ async def start_session(lecture_id: str, req: SessionStartRequest):
 
 @router.post("/{lecture_id}/answer", response_model=AnswerQuestionResponse)
 async def answer_question(lecture_id: str, req: AnswerQuestionRequest):
+    """Submit answer and get next question with adaptive difficulty."""
     lecture = LECTURES.get(lecture_id)
     if not lecture:
         raise HTTPException(status_code=404, detail="Lecture not found.")
@@ -281,7 +253,7 @@ async def answer_question(lecture_id: str, req: AnswerQuestionRequest):
 
     question = get_question_by_id(lecture, req.question_id)
 
-    # --- evaluate correctness ---
+    # ========== Evaluate correctness ==========
     is_correct = False
     correct_answer_text: Optional[str] = question.answer
 
@@ -300,18 +272,18 @@ async def answer_question(lecture_id: str, req: AnswerQuestionRequest):
                 detail="selected_option_index is out of range.",
             )
         is_correct = question.options[req.selected_option_index].is_correct
-        # override with the correct option's text for display
+        # Get correct option text for display
         for opt in question.options or []:
             if opt.is_correct:
                 correct_answer_text = opt.text
                 break
     else:
-        # simple string comparison for now; later you can add NLP similarity
+        # Simple string comparison for fill_blank and short_answer
         is_correct = (
             normalize_text(req.learner_answer) == normalize_text(question.answer)
         )
 
-    # --- update session stats ---
+    # ========== Update session stats ==========
     session.total_answered += 1
     if is_correct:
         session.correct_count += 1
@@ -323,18 +295,29 @@ async def answer_question(lecture_id: str, req: AnswerQuestionRequest):
             learner_answer=req.learner_answer,
             selected_option_index=req.selected_option_index,
             difficulty=question.difficulty,
+            time_spent=req.time_spent,
         )
     )
 
-    # adapt difficulty for next question
+    # ========== Adaptive difficulty adjustment ==========
     update_difficulty(session)
 
-    # pick next question
+    # ========== Select next question ==========
     next_q = select_next_question(lecture, session)
     finished = next_q is None
+    
+    # Calculate score
     score = session.correct_count / session.total_answered if session.total_answered else 0.0
 
-    # save session back
+    # ========== Handle session completion ==========
+    if finished:
+        session.completed_at = datetime.now()
+        
+        # Record analytics
+        if session.learner_id:
+            analytics_engine.record_session(session, lecture)
+
+    # Save session
     SESSIONS[session.id] = session
 
     return AnswerQuestionResponse(
@@ -344,4 +327,145 @@ async def answer_question(lecture_id: str, req: AnswerQuestionRequest):
         finished=finished,
         score=score,
         next_question=next_q,
+        current_difficulty=session.current_difficulty,
     )
+
+
+# ============================================================================
+# Proctoring Endpoints (New additions)
+# ============================================================================
+
+@router.post("/proctoring/{session_id}/event")
+async def log_proctoring_event(session_id: str, event: ProctoringEvent):
+    """Log a proctoring event during the exam."""
+    session = SESSIONS.get(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found.")
+    
+    result = proctoring_engine.log_proctoring_event(event)
+    
+    # Add to session flags
+    session.proctoring_flags.append({
+        "type": event.event_type,
+        "timestamp": event.timestamp.isoformat(),
+        "confidence": event.confidence,
+    })
+    SESSIONS[session_id] = session
+    
+    return result
+
+
+@router.get("/proctoring/{session_id}/report", response_model=ProctoringReport)
+async def get_proctoring_report(session_id: str):
+    """Get comprehensive proctoring report for a session."""
+    session = SESSIONS.get(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found.")
+    
+    report = proctoring_engine.get_proctoring_report(session_id)
+    return report
+
+
+# ============================================================================
+# Analytics Endpoints (New additions)
+# ============================================================================
+
+@router.get("/analytics/student/{student_id}", response_model=StudentAnalytics)
+async def get_student_analytics(student_id: str):
+    """Get comprehensive analytics for a specific student."""
+    analytics = analytics_engine.get_student_analytics(student_id)
+    
+    return StudentAnalytics(
+        student_id=analytics.student_id,
+        total_exams=analytics.total_exams,
+        average_score=analytics.average_score,
+        time_per_question=analytics.time_per_question,
+        difficulty_performance=analytics.difficulty_performance,
+        topic_performance=analytics.topic_performance,
+        improvement_trend=analytics.improvement_trend,
+        recent_sessions=[]
+    )
+
+
+@router.get("/analytics/class/overview", response_model=ClassAnalytics)
+async def get_class_analytics():
+    """Get class-wide analytics and statistics."""
+    analytics = analytics_engine.get_class_analytics()
+    return ClassAnalytics(
+        total_students=analytics["total_students"],
+        total_exams=analytics["total_exams"],
+        average_score=analytics["average_score"],
+        top_performers=analytics["top_performers"],
+        common_weak_topics=analytics["common_weak_topics"],
+    )
+
+
+# ============================================================================
+# Results & Session Info
+# ============================================================================
+
+@router.get("/results/{session_id}")
+async def get_exam_results(session_id: str):
+    """Get detailed results for a completed exam session."""
+    session = SESSIONS.get(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found.")
+    
+    if not session.completed_at:
+        raise HTTPException(status_code=400, detail="Exam not yet completed.")
+    
+    lecture = LECTURES.get(session.lecture_id)
+    if not lecture:
+        raise HTTPException(status_code=404, detail="Lecture not found.")
+    
+    # Build detailed results
+    results = []
+    for answer in session.answers:
+        question = get_question_by_id(lecture, answer.question_id)
+        results.append({
+            "question": question.prompt,
+            "your_answer": answer.learner_answer or f"Option {answer.selected_option_index}",
+            "correct_answer": question.answer,
+            "is_correct": answer.is_correct,
+            "explanation": question.explanation,
+            "difficulty": question.difficulty,
+        })
+    
+    # Get proctoring report
+    proctoring_report = proctoring_engine.get_proctoring_report(session_id)
+    
+    score_percentage = (session.correct_count / session.total_answered * 100) if session.total_answered else 0
+    
+    return {
+        "session_id": session_id,
+        "learner_id": session.learner_id,
+        "lecture_id": session.lecture_id,
+        "lecture_title": lecture.title,
+        "score": score_percentage,
+        "correct": session.correct_count,
+        "total": session.total_answered,
+        "results": results,
+        "proctoring": proctoring_report,
+        "completed_at": session.completed_at.isoformat() if session.completed_at else None,
+    }
+    
+@router.get("/session/{session_id}")
+async def get_session_info(session_id: str):
+    """Get current session information and progress."""
+    session = SESSIONS.get(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found.")
+    
+    lecture = LECTURES.get(session.lecture_id)
+    
+    return {
+        "session_id": session.id,
+        "lecture_id": session.lecture_id,
+        "lecture_title": lecture.title if lecture else "Unknown",
+        "learner_id": session.learner_id,
+        "current_difficulty": session.current_difficulty,
+        "progress": f"{session.total_answered}/{len(lecture.questions) if lecture else 0}",
+        "score": (session.correct_count / session.total_answered) if session.total_answered else 0,
+        "started_at": session.started_at.isoformat() if session.started_at else None,
+        "completed_at": session.completed_at.isoformat() if session.completed_at else None,
+    }
