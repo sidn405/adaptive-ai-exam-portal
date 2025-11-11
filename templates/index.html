@@ -317,10 +317,37 @@
         });
 
         // Start exam for a specific lecture
-        function startExamForLecture(lectureId) {
+        async function startExamForLecture(lectureId) {
             const studentId = generateStudentId();
-            localStorage.setItem('currentStudentId', studentId);
-            window.location.href = `/exam?lecture=${lectureId}&student=${studentId}`;
+            
+            try {
+                // Call API to start exam session
+                const response = await fetch('/api/exams/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        student_id: studentId,
+                        lecture_id: lectureId
+                    })
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Failed to start exam');
+                }
+                
+                const data = await response.json();
+                
+                // Store student ID for later
+                localStorage.setItem('currentStudentId', studentId);
+                
+                // Redirect to exam page with session ID
+                window.location.href = `/exam?session=${data.session_id}`;
+                
+            } catch (error) {
+                console.error('Error starting exam:', error);
+                alert('Error starting exam: ' + error.message);
+            }
         }
 
         // Load lectures on page load
