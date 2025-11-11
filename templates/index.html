@@ -204,7 +204,7 @@
                 const formData = new FormData();
                 formData.append('file', file);
 
-                const response = await fetch(`${API_BASE}/transcribe`, {
+                const response = await fetch(`/api/transcribe`, {
                     method: 'POST',
                     body: formData
                 });
@@ -237,7 +237,7 @@
         // Load available lectures
         async function loadLectures() {
             try {
-                const response = await fetch(`${API_BASE}/lectures`);
+                const response = await fetch(`/api/lectures`);
                 const lectures = await response.json();
                 
                 const container = document.getElementById('lectures-list');
@@ -276,7 +276,7 @@
             resultDiv.innerHTML = '<div class="spinner"></div>';
             
             try {
-                const response = await fetch(`${API_BASE}/lectures`, {
+                const response = await fetch(`/api/lectures`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                     body: `title=${encodeURIComponent(title)}&content=${encodeURIComponent(content)}`

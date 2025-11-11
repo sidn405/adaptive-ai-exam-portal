@@ -7,173 +7,288 @@
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
-    <header class="header">
+    <nav class="navbar">
         <div class="container">
-            <h1>📊 Analytics Dashboard</h1>
-            <nav class="nav">
+            <div class="nav-brand">
+                <span class="icon">🎓</span>
+                <span>Adaptive AI Exam Portal</span>
+            </div>
+            <div class="nav-links">
                 <a href="/">Home</a>
                 <a href="/analytics">Analytics</a>
-            </nav>
+                <a href="/#about">About</a>
+            </div>
         </div>
-    </header>
+    </nav>
 
-    <div class="container">
-        <!-- Student Selection -->
-        <div class="card">
-            <h2 class="card-header">Select Student</h2>
+    <main class="container">
+        <section class="hero">
+            <h1>📊 Analytics Dashboard</h1>
+            <p>Track student performance and get personalized recommendations</p>
+        </section>
+
+        <section class="analytics-controls">
             <div class="form-group">
-                <input 
-                    type="text" 
-                    id="student-id-input" 
-                    class="form-input" 
-                    placeholder="Enter student ID or use the current session ID"
-                    style="display: inline-block; width: 70%; margin-right: 10px;"
-                >
-                <button class="btn btn-primary" onclick="loadAnalyticsForStudent()">
-                    Load Analytics
-                </button>
+                <label for="studentIdInput">Student ID</label>
+                <input type="text" id="studentIdInput" class="form-control" placeholder="Enter student ID">
+                <button class="btn btn-primary" onclick="loadStudentAnalytics()">Load Analytics</button>
             </div>
-            <p style="color: var(--text-secondary); margin-top: 12px;">
-                Your current session ID: <strong id="current-student-id">-</strong>
-                <button class="btn btn-secondary" style="padding: 6px 12px; margin-left: 10px;" onclick="useCurrentStudent()">
-                    Use This ID
-                </button>
-            </p>
-        </div>
+        </section>
 
-        <!-- Analytics Container -->
-        <div id="analytics-container">
-            <div class="card" style="text-align: center; padding: 60px;">
-                <p style="color: var(--text-secondary);">
-                    Enter a student ID to view performance analytics
-                </p>
+        <section id="studentAnalytics" class="analytics-section hidden">
+            <h2>Student Performance</h2>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">📚</div>
+                    <div class="stat-content">
+                        <h3 id="totalExams">0</h3>
+                        <p>Total Exams</p>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon">⭐</div>
+                    <div class="stat-content">
+                        <h3 id="avgScore">0%</h3>
+                        <p>Average Score</p>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon">⏱️</div>
+                    <div class="stat-content">
+                        <h3 id="avgTime">0s</h3>
+                        <p>Avg Time/Question</p>
+                    </div>
+                </div>
             </div>
-        </div>
 
-        <!-- Class Overview -->
-        <div class="card">
-            <h2 class="card-header">Class Overview</h2>
-            <button class="btn btn-primary" onclick="loadClassAnalytics()">
-                Load Class Analytics
-            </button>
-            <div id="class-analytics" style="margin-top: 20px;"></div>
-        </div>
+            <div class="performance-grid">
+                <div class="performance-card">
+                    <h3>📈 Performance by Difficulty</h3>
+                    <div id="difficultyPerformance">
+                        <div class="performance-bar">
+                            <span class="label">Easy:</span>
+                            <div class="bar"><div class="fill easy" id="easyBar"></div></div>
+                            <span class="value" id="easyValue">0%</span>
+                        </div>
+                        <div class="performance-bar">
+                            <span class="label">Medium:</span>
+                            <div class="bar"><div class="fill medium" id="mediumBar"></div></div>
+                            <span class="value" id="mediumValue">0%</span>
+                        </div>
+                        <div class="performance-bar">
+                            <span class="label">Hard:</span>
+                            <div class="bar"><div class="fill hard" id="hardBar"></div></div>
+                            <span class="value" id="hardValue">0%</span>
+                        </div>
+                    </div>
+                </div>
 
-        <!-- Info Card -->
-        <div class="card" style="background: #EFF6FF; border-left: 4px solid var(--primary-color);">
-            <h3 style="color: var(--primary-color); margin-bottom: 12px;">📈 Analytics Features</h3>
-            <ul style="line-height: 1.8; margin-left: 20px;">
-                <li><strong>Performance Metrics:</strong> Track scores, completion rates, and improvement trends</li>
-                <li><strong>Difficulty Analysis:</strong> See how students perform across different difficulty levels</li>
-                <li><strong>Topic Breakdown:</strong> Identify strong and weak areas by subject</li>
-                <li><strong>Time Analysis:</strong> Average time spent per question and exam</li>
-                <li><strong>Personalized Recommendations:</strong> AI-generated study suggestions</li>
-                <li><strong>Class Comparison:</strong> See how individual performance compares to class average</li>
-            </ul>
-        </div>
-    </div>
+                <div class="performance-card">
+                    <h3>🎯 Topic Performance</h3>
+                    <div id="topicPerformance">
+                        <p>No topic data available</p>
+                    </div>
+                </div>
+            </div>
 
-    <script src="/static/js/app.js"></script>
+            <div class="improvement-section">
+                <h3>📊 Improvement Trend</h3>
+                <canvas id="improvementChart" width="600" height="200"></canvas>
+            </div>
+        </section>
+
+        <section id="classAnalytics" class="analytics-section">
+            <h2>Class Overview</h2>
+            <button class="btn btn-secondary" onclick="loadClassAnalytics()">Load Class Analytics</button>
+            <div id="classAnalyticsContent" class="hidden">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">👥</div>
+                        <div class="stat-content">
+                            <h3 id="totalStudents">0</h3>
+                            <p>Total Students</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📝</div>
+                        <div class="stat-content">
+                            <h3 id="totalClassExams">0</h3>
+                            <p>Total Exams</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🎯</div>
+                        <div class="stat-content">
+                            <h3 id="classAvgScore">0%</h3>
+                            <p>Class Average</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
     <script>
-        // Display current student ID if available
-        const currentStudentId = localStorage.getItem('currentStudentId');
-        if (currentStudentId) {
-            document.getElementById('current-student-id').textContent = currentStudentId;
-        }
-
-        // Check if student ID in URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const urlStudentId = urlParams.get('student');
-        if (urlStudentId) {
-            document.getElementById('student-id-input').value = urlStudentId;
-            loadAnalyticsForStudent();
-        }
-
-        function useCurrentStudent() {
-            const currentId = localStorage.getItem('currentStudentId');
-            if (currentId) {
-                document.getElementById('student-id-input').value = currentId;
-                loadAnalyticsForStudent();
-            } else {
-                alert('No current student ID found. Please complete an exam first.');
-            }
-        }
-
-        function loadAnalyticsForStudent() {
-            const studentId = document.getElementById('student-id-input').value.trim();
+        // No API_BASE needed - use relative URLs
+        
+        async function loadStudentAnalytics() {
+            const studentId = document.getElementById('studentIdInput').value.trim();
+            
             if (!studentId) {
                 alert('Please enter a student ID');
                 return;
             }
-            analyticsManager.loadStudentAnalytics(studentId);
-        }
-
-        async function loadClassAnalytics() {
-            const container = document.getElementById('class-analytics');
-            container.innerHTML = '<div class="spinner"></div>';
-
+            
             try {
-                const response = await fetch(`${API_BASE}/analytics/class/overview`);
-                const data = await response.json();
-
-                if (data.total_students === 0) {
-                    container.innerHTML = '<p>No class data available yet. Students need to complete exams first.</p>';
-                    return;
+                const response = await fetch(`/api/lectures/analytics/student/${studentId}`);
+                
+                if (!response.ok) {
+                    throw new Error('Failed to load analytics');
                 }
-
-                container.innerHTML = `
-                    <div class="stats-grid" style="margin: 20px 0;">
-                        <div class="stat-card">
-                            <div class="stat-value">${data.total_students}</div>
-                            <div class="stat-label">Total Students</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-value">${data.total_exams}</div>
-                            <div class="stat-label">Total Exams</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-value">${data.average_score.toFixed(1)}%</div>
-                            <div class="stat-label">Class Average</div>
-                        </div>
+                
+                const data = await response.json();
+                
+                // Show analytics section
+                document.getElementById('studentAnalytics').classList.remove('hidden');
+                
+                // Update stats
+                document.getElementById('totalExams').textContent = data.total_exams;
+                document.getElementById('avgScore').textContent = Math.round(data.average_score) + '%';
+                document.getElementById('avgTime').textContent = Math.round(data.time_per_question) + 's';
+                
+                // Update difficulty performance
+                if (data.difficulty_performance) {
+                    updateDifficultyBars(data.difficulty_performance);
+                }
+                
+                // Update topic performance
+                if (data.topic_performance && Object.keys(data.topic_performance).length > 0) {
+                    updateTopicPerformance(data.topic_performance);
+                }
+                
+                // Update improvement trend
+                if (data.improvement_trend && data.improvement_trend.length > 0) {
+                    drawImprovementChart(data.improvement_trend);
+                }
+                
+            } catch (error) {
+                console.error('Error loading analytics:', error);
+                alert('Error loading analytics: ' + error.message);
+            }
+        }
+        
+        function updateDifficultyBars(performance) {
+            const difficulties = ['easy', 'medium', 'hard'];
+            
+            difficulties.forEach(diff => {
+                const value = performance[diff] || 0;
+                const bar = document.getElementById(`${diff}Bar`);
+                const valueSpan = document.getElementById(`${diff}Value`);
+                
+                if (bar) bar.style.width = value + '%';
+                if (valueSpan) valueSpan.textContent = Math.round(value) + '%';
+            });
+        }
+        
+        function updateTopicPerformance(topics) {
+            const container = document.getElementById('topicPerformance');
+            
+            const html = Object.entries(topics).map(([topic, score]) => `
+                <div class="performance-bar">
+                    <span class="label">${topic}:</span>
+                    <div class="bar">
+                        <div class="fill" style="width: ${score}%; background: #4CAF50;"></div>
                     </div>
-
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 30px;">
-                        <div>
-                            <h3 style="margin-bottom: 16px;">🏆 Top Performers</h3>
-                            ${data.top_performers.length > 0 ? `
-                                <div>
-                                    ${data.top_performers.map((student, idx) => `
-                                        <div style="padding: 12px; background: ${idx === 0 ? '#FEF3C7' : 'white'}; border-radius: 8px; margin-bottom: 8px; border: 1px solid var(--border-color);">
-                                            <strong>${idx + 1}. ${student.student_id}</strong>
-                                            <span style="float: right; color: var(--primary-color); font-weight: 600;">
-                                                ${student.average.toFixed(1)}%
-                                            </span>
-                                        </div>
-                                    `).join('')}
-                                </div>
-                            ` : '<p>No data available</p>'}
-                        </div>
-
-                        <div>
-                            <h3 style="margin-bottom: 16px;">📚 Topics Needing Attention</h3>
-                            ${data.common_weak_topics.length > 0 ? `
-                                <div>
-                                    ${data.common_weak_topics.map(topic => `
-                                        <div style="padding: 12px; background: white; border-radius: 8px; margin-bottom: 8px; border: 1px solid var(--border-color);">
-                                            <strong>${topic.topic}</strong>
-                                            <span style="float: right; color: var(--danger-color); font-weight: 600;">
-                                                ${topic.performance.toFixed(1)}%
-                                            </span>
-                                        </div>
-                                    `).join('')}
-                                </div>
-                            ` : '<p>No weak topics identified</p>'}
-                        </div>
-                    </div>
-                `;
+                    <span class="value">${Math.round(score)}%</span>
+                </div>
+            `).join('');
+            
+            container.innerHTML = html;
+        }
+        
+        function drawImprovementChart(trend) {
+            const canvas = document.getElementById('improvementChart');
+            const ctx = canvas.getContext('2d');
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Simple line chart
+            const width = canvas.width;
+            const height = canvas.height;
+            const padding = 40;
+            const maxScore = 100;
+            
+            // Draw axes
+            ctx.strokeStyle = '#ddd';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(padding, padding);
+            ctx.lineTo(padding, height - padding);
+            ctx.lineTo(width - padding, height - padding);
+            ctx.stroke();
+            
+            // Draw line
+            ctx.strokeStyle = '#4CAF50';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            
+            const step = (width - 2 * padding) / (trend.length - 1);
+            
+            trend.forEach((score, index) => {
+                const x = padding + index * step;
+                const y = height - padding - (score / maxScore) * (height - 2 * padding);
+                
+                if (index === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+                
+                // Draw point
+                ctx.fillStyle = '#4CAF50';
+                ctx.beginPath();
+                ctx.arc(x, y, 5, 0, 2 * Math.PI);
+                ctx.fill();
+            });
+            
+            ctx.stroke();
+            
+            // Draw labels
+            ctx.fillStyle = '#666';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            
+            trend.forEach((score, index) => {
+                const x = padding + index * step;
+                ctx.fillText(`${index + 1}`, x, height - padding + 20);
+            });
+        }
+        
+        async function loadClassAnalytics() {
+            try {
+                const response = await fetch('/api/lectures/analytics/class/overview');
+                
+                if (!response.ok) {
+                    throw new Error('Failed to load class analytics');
+                }
+                
+                const data = await response.json();
+                
+                // Show class analytics
+                document.getElementById('classAnalyticsContent').classList.remove('hidden');
+                
+                // Update stats
+                document.getElementById('totalStudents').textContent = data.total_students;
+                document.getElementById('totalClassExams').textContent = data.total_exams;
+                document.getElementById('classAvgScore').textContent = Math.round(data.average_score) + '%';
+                
             } catch (error) {
                 console.error('Error loading class analytics:', error);
-                container.innerHTML = '<p>Error loading class analytics</p>';
+                alert('Error loading class analytics: ' + error.message);
             }
         }
     </script>
