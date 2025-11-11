@@ -182,6 +182,11 @@
     <script src="/static/js/app.js"></script>
     <script>
 
+        // Generate a unique student ID
+        function generateStudentId() {
+            return 'student_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        }
+
         // Handle file selection and transcription
         document.getElementById('lecture-file').addEventListener('change', async (e) => {
             const file = e.target.files[0];

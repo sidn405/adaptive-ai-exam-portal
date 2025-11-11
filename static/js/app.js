@@ -1,11 +1,11 @@
 // No API_BASE needed - use relative URLs since frontend and backend are on same domain
 
 // Global variables
-let currentLecture = null;
-let currentSession = null;
-let currentQuestion = null;
-let totalQuestions = 0;
-let questionNumber = 1;
+// let currentLecture = null;
+// let currentSession = null;
+// let currentQuestion = null;
+// let totalQuestions = 0;
+// let questionNumber = 1;
 
 // Initialize proctoring when exam starts
 let proctoringActive = false;
