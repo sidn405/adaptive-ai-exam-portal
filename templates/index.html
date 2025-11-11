@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adaptive AI Exam Portal</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <h1>🎓 Adaptive AI Exam Portal</h1>
+            <nav class="nav">
+                <a href="/">Home</a>
+                <a href="/analytics">Analytics</a>
+                <a href="#about">About</a>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Hero Section -->
+        <div class="card" style="text-align: center; margin-top: 40px;">
+            <h2 style="font-size: 2.5rem; margin-bottom: 16px;">
+                Transform Learning with AI-Powered Adaptive Testing
+            </h2>
+            <p style="font-size: 1.25rem; color: var(--text-secondary); margin-bottom: 30px;">
+                Upload lecture content, generate intelligent questions, and take adaptive exams with real-time proctoring
+            </p>
+        </div>
+
+        <!-- Features -->
+        <div class="stats-grid" style="margin: 40px 0;">
+            <div class="card" style="text-align: center;">
+                <div style="font-size: 3rem; margin-bottom: 12px;">🤖</div>
+                <h3>AI Question Generator</h3>
+                <p>Automatically generate questions from lecture content using advanced NLP</p>
+            </div>
+            <div class="card" style="text-align: center;">
+                <div style="font-size: 3rem; margin-bottom: 12px;">📊</div>
+                <h3>Smart Evaluation</h3>
+                <p>Adaptive testing that adjusts difficulty based on performance</p>
+            </div>
+            <div class="card" style="text-align: center;">
+                <div style="font-size: 3rem; margin-bottom: 12px;">📹</div>
+                <h3>AI Proctoring</h3>
+                <p>Lightweight proctoring with tab switching and face detection</p>
+            </div>
+            <div class="card" style="text-align: center;">
+                <div style="font-size: 3rem; margin-bottom: 12px;">📈</div>
+                <h3>Analytics Dashboard</h3>
+                <p>Comprehensive performance tracking and recommendations</p>
+            </div>
+        </div>
+
+        <!-- Quick Start -->
+        <div class="card">
+            <h2 class="card-header">Quick Start</h2>
+            <div style="display: grid; gap: 20px; grid-template-columns: 1fr 1fr;">
+                <!-- Create Lecture -->
+                <div style="padding: 20px; border: 2px solid var(--border-color); border-radius: 8px;">
+                    <h3 style="margin-bottom: 16px;">📝 Create Lecture</h3>
+                    <p style="margin-bottom: 20px; color: var(--text-secondary);">
+                        Upload your lecture content to generate AI-powered exam questions
+                    </p>
+                    <button class="btn btn-primary" onclick="document.getElementById('lecture-section').scrollIntoView({behavior: 'smooth'})">
+                        Upload Lecture
+                    </button>
+                </div>
+
+                <!-- Take Exam -->
+                <div style="padding: 20px; border: 2px solid var(--border-color); border-radius: 8px;">
+                    <h3 style="margin-bottom: 16px;">✍️ Take Exam</h3>
+                    <p style="margin-bottom: 20px; color: var(--text-secondary);">
+                        Start an adaptive exam with real-time AI proctoring
+                    </p>
+                    <button class="btn btn-success" onclick="document.getElementById('exam-section').scrollIntoView({behavior: 'smooth'})">
+                        Start Exam
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Upload Lecture Section -->
+        <div class="card" id="lecture-section">
+            <h2 class="card-header">📚 Upload Lecture Content</h2>
+            <form id="lecture-form">
+                <div class="form-group">
+                    <label class="form-label" for="lecture-title">Lecture Title</label>
+                    <input 
+                        type="text" 
+                        id="lecture-title" 
+                        class="form-input" 
+                        placeholder="e.g., Introduction to Machine Learning"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="lecture-content">Lecture Content</label>
+                    <textarea 
+                        id="lecture-content" 
+                        class="form-textarea" 
+                        placeholder="Paste your lecture content here... The system will automatically generate exam questions from this content."
+                        style="min-height: 200px;"
+                        required
+                    ></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    Generate Questions & Create Lecture
+                </button>
+            </form>
+
+            <div id="lecture-result" style="margin-top: 20px;"></div>
+        </div>
+
+        <!-- Available Lectures -->
+        <div class="card" id="exam-section">
+            <h2 class="card-header">📖 Available Lectures</h2>
+            <div id="lectures-list">
+                <div class="spinner"></div>
+            </div>
+        </div>
+
+        <!-- About Section -->
+        <div class="card" id="about">
+            <h2 class="card-header">About This System</h2>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+                <div>
+                    <h3 style="color: var(--primary-color); margin-bottom: 12px;">🎯 Key Features</h3>
+                    <ul style="line-height: 2;">
+                        <li>AI-powered question generation from lecture content</li>
+                        <li>Adaptive testing with dynamic difficulty adjustment</li>
+                        <li>Smart evaluation with personalized feedback</li>
+                        <li>Real-time AI proctoring (tab switching, webcam)</li>
+                        <li>Comprehensive analytics and performance tracking</li>
+                        <li>Integrity scoring and proctoring reports</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 style="color: var(--primary-color); margin-bottom: 12px;">🔧 Technologies Used</h3>
+                    <ul style="line-height: 2;">
+                        <li>FastAPI (Python backend)</li>
+                        <li>Natural Language Processing for question generation</li>
+                        <li>Adaptive testing algorithms</li>
+                        <li>WebRTC for proctoring</li>
+                        <li>Real-time analytics engine</li>
+                        <li>Responsive web interface</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+    <script>
+        // Load available lectures
+        async function loadLectures() {
+            try {
+                const response = await fetch(`${API_BASE}/lectures`);
+                const lectures = await response.json();
+                
+                const container = document.getElementById('lectures-list');
+                
+                if (lectures.length === 0) {
+                    container.innerHTML = '<p>No lectures available. Create one above to get started!</p>';
+                    return;
+                }
+                
+                container.innerHTML = lectures.map(lecture => `
+                    <div class="card" style="padding: 20px; margin-bottom: 16px;">
+                        <h3 style="margin-bottom: 8px;">${lecture.title}</h3>
+                        <p style="color: var(--text-secondary); margin-bottom: 16px;">
+                            Created: ${new Date(lecture.created_at).toLocaleDateString()}
+                        </p>
+                        <button class="btn btn-primary" onclick="startExamForLecture('${lecture.id}')">
+                            Start Exam
+                        </button>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading lectures:', error);
+                document.getElementById('lectures-list').innerHTML = 
+                    '<p>Error loading lectures. Please refresh the page.</p>';
+            }
+        }
+
+        // Handle lecture form submission
+        document.getElementById('lecture-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const title = document.getElementById('lecture-title').value;
+            const content = document.getElementById('lecture-content').value;
+            
+            const resultDiv = document.getElementById('lecture-result');
+            resultDiv.innerHTML = '<div class="spinner"></div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/lectures`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `title=${encodeURIComponent(title)}&content=${encodeURIComponent(content)}`
+                });
+                
+                const data = await response.json();
+                
+                resultDiv.innerHTML = `
+                    <div class="alert alert-success" style="background: #D1FAE5; color: #065F46; padding: 16px; border-radius: 8px;">
+                        <strong>✓ Success!</strong> Created "${title}" with ${data.questions_generated} questions.
+                        <br><br>
+                        <button class="btn btn-success" onclick="startExamForLecture('${data.lecture_id}')">
+                            Start Exam Now
+                        </button>
+                    </div>
+                `;
+                
+                // Reset form
+                e.target.reset();
+                
+                // Reload lectures list
+                loadLectures();
+            } catch (error) {
+                console.error('Error creating lecture:', error);
+                resultDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        Error creating lecture. Please try again.
+                    </div>
+                `;
+            }
+        });
+
+        // Start exam for a specific lecture
+        function startExamForLecture(lectureId) {
+            const studentId = generateStudentId();
+            localStorage.setItem('currentStudentId', studentId);
+            window.location.href = `/exam?lecture=${lectureId}&student=${studentId}`;
+        }
+
+        // Load lectures on page load
+        loadLectures();
+    </script>
+</body>
+</html>

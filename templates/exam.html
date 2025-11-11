@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exam - Adaptive AI Exam Portal</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <h1>📝 Exam In Progress</h1>
+        </div>
+    </header>
+
+    <!-- Proctoring Panel -->
+    <div class="proctoring-panel">
+        <div class="proctoring-status">
+            <div class="status-indicator status-active"></div>
+            <span><strong>Proctoring Active</strong></span>
+        </div>
+        
+        <video id="webcam-preview" class="webcam-preview" autoplay muted></video>
+        
+        <div style="font-size: 0.875rem; margin-bottom: 12px;">
+            <strong>Guidelines:</strong>
+            <ul style="margin-left: 20px; margin-top: 8px;">
+                <li>Stay in frame</li>
+                <li>No tab switching</li>
+                <li>No external help</li>
+            </ul>
+        </div>
+        
+        <div id="proctoring-alerts" class="proctoring-alerts"></div>
+    </div>
+
+    <div class="container" style="max-width: 900px;">
+        <!-- Progress -->
+        <div class="progress-container">
+            <div class="progress-bar">
+                <div id="progress-fill" class="progress-fill" style="width: 0%;"></div>
+            </div>
+            <div id="progress-text" class="progress-text">Question 0 / 0</div>
+        </div>
+
+        <!-- Question Container -->
+        <div id="question-container">
+            <div class="card" style="text-align: center; padding: 60px;">
+                <div class="spinner"></div>
+                <p style="margin-top: 20px; color: var(--text-secondary);">
+                    Initializing exam and starting proctoring...
+                </p>
+            </div>
+        </div>
+
+        <!-- Instructions -->
+        <div class="card" style="margin-top: 20px; background: #FEF3C7; border-left: 4px solid #F59E0B;">
+            <h3 style="color: #92400E; margin-bottom: 12px;">⚠️ Important</h3>
+            <ul style="color: #92400E; line-height: 1.8; margin-left: 20px;">
+                <li>This exam is being proctored using AI technology</li>
+                <li>Tab switching and suspicious behavior will be recorded</li>
+                <li>Keep your face visible in the webcam at all times</li>
+                <li>Right-click and copy/paste are disabled</li>
+                <li>Questions adapt based on your performance</li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+    <script>
+        // Get URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const lectureId = urlParams.get('lecture');
+        const studentId = urlParams.get('student');
+
+        if (!lectureId || !studentId) {
+            alert('Missing lecture or student information');
+            window.location.href = '/';
+        } else {
+            // Start the exam
+            examManager.startExam(studentId, lectureId);
+        }
+
+        // Prevent page navigation during exam
+        window.addEventListener('beforeunload', (e) => {
+            if (examManager.sessionId) {
+                e.preventDefault();
+                e.returnValue = '';
+                return 'Are you sure you want to leave? Your exam progress may be lost.';
+            }
+        });
+
+        // Disable shortcuts that could be used to cheat
+        document.addEventListener('keydown', (e) => {
+            // Disable F12 (dev tools)
+            if (e.key === 'F12') {
+                e.preventDefault();
+                return false;
+            }
+            
+            // Disable Ctrl+Shift+I (dev tools)
+            if (e.ctrlKey && e.shiftKey && e.key === 'I') {
+                e.preventDefault();
+                return false;
+            }
+            
+            // Disable Ctrl+U (view source)
+            if (e.ctrlKey && e.key === 'u') {
+                e.preventDefault();
+                return false;
+            }
+        });
+    </script>
+</body>
+</html>

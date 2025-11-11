@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exam Results - Adaptive AI Exam Portal</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <h1>📋 Exam Results</h1>
+            <nav class="nav">
+                <a href="/">Home</a>
+                <a href="/analytics">Analytics</a>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container">
+        <div id="results-container">
+            <div class="card" style="text-align: center; padding: 60px;">
+                <div class="spinner"></div>
+                <p style="margin-top: 20px; color: var(--text-secondary);">
+                    Loading your results...
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+    <script>
+        // Get session ID from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const sessionId = urlParams.get('session');
+
+        if (!sessionId) {
+            document.getElementById('results-container').innerHTML = `
+                <div class="card" style="text-align: center;">
+                    <h2>No Session Found</h2>
+                    <p>Please complete an exam first.</p>
+                    <a href="/" class="btn btn-primary" style="margin-top: 20px;">Go to Home</a>
+                </div>
+            `;
+        } else {
+            // Load results
+            loadResults(sessionId);
+        }
+    </script>
+</body>
+</html>
