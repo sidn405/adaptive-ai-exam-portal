@@ -51,8 +51,35 @@
                 <h3>Analytics Dashboard</h3>
                 <p>Comprehensive performance tracking and recommendations</p>
             </div>
-        </di>
+        </div>
 
+        <!-- Quick Start -->
+        <div class="card">
+            <h2 class="card-header">Quick Start</h2>
+            <div style="display: grid; gap: 20px; grid-template-columns: 1fr 1fr;">
+                <!-- Create Lecture -->
+                <div style="padding: 20px; border: 2px solid var(--border-color); border-radius: 8px;">
+                    <h3 style="margin-bottom: 16px;">📝 Create Lecture</h3>
+                    <p style="margin-bottom: 20px; color: var(--text-secondary);">
+                        Upload your lecture content to generate AI-powered exam questions
+                    </p>
+                    <button class="btn btn-primary" onclick="document.getElementById('lecture-section').scrollIntoView({behavior: 'smooth'})">
+                        Upload Lecture
+                    </button>
+                </div>
+
+                <!-- Take Exam -->
+                <div style="padding: 20px; border: 2px solid var(--border-color); border-radius: 8px;">
+                    <h3 style="margin-bottom: 16px;">✍️ Take Exam</h3>
+                    <p style="margin-bottom: 20px; color: var(--text-secondary);">
+                        Start an adaptive exam with real-time AI proctoring
+                    </p>
+                    <button class="btn btn-success" onclick="document.getElementById('exam-section').scrollIntoView({behavior: 'smooth'})">
+                        Start Exam
+                    </button>
+                </div>
+            </div>
+        </div>
 
         <!-- Upload Lecture Section -->
         <div class="card" id="lecture-section">
