@@ -84,8 +84,8 @@ async function loadLectures() {
     }
 }
 
-// Start exam with specific lecture
-window.startExamWithLecture = async function(lectureId) {
+// Alternative function name - make sure this matches your onclick
+window.startExamForLecture = async function(lectureId) {
     const studentId = prompt('Enter your student ID:');
     if (!studentId) return;
     
@@ -112,6 +112,9 @@ window.startExamWithLecture = async function(lectureId) {
         alert('Error starting exam: ' + error.message);
     }
 }
+
+// Alias for backward compatibility
+window.startExam = window.startExamForLecture;
 
 // Upload lecture content
 const uploadForm = document.getElementById('uploadForm');
