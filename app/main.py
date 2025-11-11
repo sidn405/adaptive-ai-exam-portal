@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import os
 from pydantic import BaseModel
 from datetime import datetime
-from app.models import Lecture, GeneratedQuestion, GetQuestionResponse
+from app.models import Lecture, GeneratedQuestion
 from app.services.transcription import transcribe_audio
 from app.routers import lectures
 from app.services.question_generator import summarize_text
@@ -133,6 +133,11 @@ class StartExamResponse(BaseModel):
     session_id: str
     total_questions: int
     first_question: Dict[str, Any]  # Changed from GeneratedQuestion to Dict
+    
+class GetQuestionResponse(BaseModel):
+    question: Dict[str, Any]
+    total_questions: int
+    question_number: int
 
 @app.post("/api/lectures")
 async def api_create_lecture(
